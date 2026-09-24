@@ -1,0 +1,40 @@
+# --- Data & large media (never commit these) ---
+data/**
+!data/README.md
+*.mp4
+*.mkv
+*.avi
+model/features_v2/
+model/results_v2/*.npy
+model/results_v2/*.pt
+*.npy
+*.pth
+*.pt
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# --- Node / frontend ---
+node_modules/
+frontend/dist/
+frontend/build/
+.next/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Secrets ---
+.env
+.env.local
+*.key
