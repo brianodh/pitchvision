@@ -1,0 +1,44 @@
+{
+ "games": {
+  "blackburn": {
+   "tag": "train",
+   "start": 0,
+   "n": 2500
+  },
+  "brentford": {
+   "tag": "train_brentford",
+   "start": 2500,
+   "n": 2500
+  },
+  "hull": {
+   "tag": "train_hull",
+   "start": 5000,
+   "n": 2500
+  },
+  "leeds": {
+   "tag": "train_leeds",
+   "start": 7500,
+   "n": 2500
+  }
+ },
+ "total_seconds": 10000,
+ "positive_seconds": 2952,
+ "positives_per_class": {
+  "BALL PLAYER BLOCK": 54,
+  "CROSS": 74,
+  "DRIVE": 1099,
+  "FREE KICK": 5,
+  "GOAL": 1,
+  "HEADER": 153,
+  "HIGH PASS": 199,
+  "OUT": 136,
+  "PASS": 1257,
+  "PLAYER SUCCESSFUL TACKLE": 19,
+  "SHOT": 33,
+  "THROW IN": 88
+ },
+ "nan_inf": 0,
+ "valid_windows_W7": 9976,
+ "valid_windows_W15": 9944,
+ "valid_windows_W31": 9880
+}

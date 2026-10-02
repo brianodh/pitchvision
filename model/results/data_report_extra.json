@@ -1,0 +1,127 @@
+{
+ "train_brentford": {
+  "game": "train/england_efl/2019-2020/2019-10-01 - Brentford - Bristol City",
+  "X_shape": [
+   2500,
+   512
+  ],
+  "nan_inf": 0,
+  "events_in_slice": 884,
+  "same_second_collisions": 13,
+  "positives_per_class": {
+   "BALL PLAYER BLOCK": 14,
+   "CROSS": 17,
+   "DRIVE": 303,
+   "FREE KICK": 0,
+   "GOAL": 0,
+   "HEADER": 36,
+   "HIGH PASS": 58,
+   "OUT": 36,
+   "PASS": 369,
+   "PLAYER SUCCESSFUL TACKLE": 7,
+   "SHOT": 9,
+   "THROW IN": 22
+  },
+  "extract_seconds": 43.2
+ },
+ "train_hull": {
+  "game": "train/england_efl/2019-2020/2019-10-01 - Hull City - Sheffield Wednesday",
+  "X_shape": [
+   2500,
+   512
+  ],
+  "nan_inf": 0,
+  "events_in_slice": 718,
+  "same_second_collisions": 7,
+  "positives_per_class": {
+   "BALL PLAYER BLOCK": 9,
+   "CROSS": 15,
+   "DRIVE": 249,
+   "FREE KICK": 2,
+   "GOAL": 0,
+   "HEADER": 45,
+   "HIGH PASS": 60,
+   "OUT": 32,
+   "PASS": 271,
+   "PLAYER SUCCESSFUL TACKLE": 0,
+   "SHOT": 7,
+   "THROW IN": 21
+  },
+  "extract_seconds": 38.2
+ },
+ "train_leeds": {
+  "game": "train/england_efl/2019-2020/2019-10-01 - Leeds United - West Bromwich",
+  "X_shape": [
+   2500,
+   512
+  ],
+  "nan_inf": 0,
+  "events_in_slice": 674,
+  "same_second_collisions": 2,
+  "positives_per_class": {
+   "BALL PLAYER BLOCK": 21,
+   "CROSS": 25,
+   "DRIVE": 227,
+   "FREE KICK": 2,
+   "GOAL": 1,
+   "HEADER": 25,
+   "HIGH PASS": 34,
+   "OUT": 38,
+   "PASS": 262,
+   "PLAYER SUCCESSFUL TACKLE": 1,
+   "SHOT": 11,
+   "THROW IN": 25
+  },
+  "extract_seconds": 40.7
+ },
+ "test_stoke": {
+  "game": "test/england_efl/2019-2020/2019-10-01 - Stoke City - Huddersfield Town",
+  "X_shape": [
+   2500,
+   512
+  ],
+  "nan_inf": 0,
+  "events_in_slice": 844,
+  "same_second_collisions": 2,
+  "positives_per_class": {
+   "BALL PLAYER BLOCK": 14,
+   "CROSS": 14,
+   "DRIVE": 314,
+   "FREE KICK": 0,
+   "GOAL": 0,
+   "HEADER": 41,
+   "HIGH PASS": 27,
+   "OUT": 31,
+   "PASS": 364,
+   "PLAYER SUCCESSFUL TACKLE": 10,
+   "SHOT": 4,
+   "THROW IN": 23
+  },
+  "extract_seconds": 44.4
+ },
+ "test_reading": {
+  "game": "test/england_efl/2019-2020/2019-10-01 - Reading - Fulham",
+  "X_shape": [
+   2500,
+   512
+  ],
+  "nan_inf": 0,
+  "events_in_slice": 1003,
+  "same_second_collisions": 7,
+  "positives_per_class": {
+   "BALL PLAYER BLOCK": 13,
+   "CROSS": 13,
+   "DRIVE": 385,
+   "FREE KICK": 0,
+   "GOAL": 3,
+   "HEADER": 26,
+   "HIGH PASS": 41,
+   "OUT": 20,
+   "PASS": 465,
+   "PLAYER SUCCESSFUL TACKLE": 8,
+   "SHOT": 9,
+   "THROW IN": 13
+  },
+  "extract_seconds": 41.9
+ }
+}

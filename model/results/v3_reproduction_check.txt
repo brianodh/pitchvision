@@ -1,0 +1,4 @@
+Recorded from the console output of Cell N2 (retraining all 15 scaled runs):
+Every run printed 'valid check OK' - its validation Average-mAP (protocol A) equalled the value stored in
+results_v3.json to within 1e-9.
+Final line: valid reproduction mismatches: none - models identical to v3

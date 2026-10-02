@@ -1,133 +1,148 @@
-# PitchVision — Temporal Context in Lightweight Soccer Action Spotting
+# PitchVision - temporal context window study for soccer action spotting
 
-Code for the PARC 2026 AI League final report *"PitchVision: How Much Temporal Context Does a
-Lightweight Soccer Action Spotter Need?"*. It trains a 206k-parameter Conv1D spotter on 1-fps
-ResNet-18 features from SoccerNet Ball Action Spotting (12 classes) and measures how the temporal
-context window **W = 7 / 15 / 31 s** affects tolerance-based spotting mAP.
+Code for the PARC 2026 AI League final report *"PitchVision: How Much Temporal Context Does a Lightweight
+Soccer Action Spotter Need?"*. A 206,028-parameter Conv1D spotter is trained on 1-frame-per-second
+ResNet-18 features from the SoccerNet Ball Action Spotting data (12 classes). The **only** thing that
+changes between experimental conditions is the temporal context window **W = 7 / 15 / 31 s**.
+
+Everything is PyTorch. Nothing here needs the dataset to *run the checks* (see "Verify in 2 minutes").
 
 ## Requirements
 
-- Python ≥ 3.9 on Linux, macOS or Windows.
-- **A GPU is recommended but not required.** The reported run used a Google Colab NVIDIA Tesla T4.
-  - On a T4, feature extraction takes about 45–50 s per 2,500 s of video. The full experiment (18 training runs) takes a few minutes.
-  - On a CPU, feature extraction takes about 8 minutes per game and training is roughly 5–10× slower.
-- Disk: about 0.3 GB per 224p game video.
+| | |
+|---|---|
+| OS | Linux, macOS or Windows |
+| Python | 3.10 or newer (the reported results were produced on Python 3.13 in Google Colab) |
+| Packages | `torch`, `torchvision`, `opencv-python`, `numpy`, `matplotlib` (see `requirements.txt`) |
+| **GPU** | **Recommended, not required.** The reported results were produced on a Google Colab **Tesla T4**. Every script also runs on CPU, only slower (see timings below). For a CUDA build install `torch`/`torchvision` from https://pytorch.org first. |
+| Disk | ~0.3 GB per 224p match video; features are ~5 MB per match |
+
+**Install**
 
 ```bash
+# Linux / macOS
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python tests/test_metrics.py        # expected output: "All metric tests passed."
+```
+```powershell
+# Windows (PowerShell)
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
-## Data
-
-We use **SoccerNet Ball Action Spotting (2024)**: 7 EFL Championship games with 12 ball-action
-classes (Cioppa et al., 2024, arXiv:2409.10587).
-
-**Access.** The videos require accepting the SoccerNet NDA (see https://www.soccer-net.org).
-Neither the data nor the NDA password is included in this package.
-
-**Expected layout** (the zips unpacked under one root folder):
-
-```
-<ROOT>/extracted/train/england_efl/2019-2020/2019-10-01 - Blackburn Rovers - Nottingham Forest/{224p.mp4, Labels-ball.json}
-<ROOT>/extracted/valid/england_efl/2019-2020/2019-10-01 - Middlesbrough - Preston North End/{224p.mp4, Labels-ball.json}
-<ROOT>/extracted/test/england_efl/2019-2020/<test games>/...        (only needed for spot_video.py)
-```
-
-## Reproducing the report (3 commands)
+## Verify in 2 minutes (no dataset, no GPU needed)
 
 ```bash
-ROOT=/content/drive/MyDrive/SoccerNet_Project      # change to your data root
-
-python scripts/extract_features.py --root $ROOT    # -> $ROOT/features_v2/{train,valid}_{X,Y}.npy, data_report.json
-python scripts/run_experiment.py  --root $ROOT     # -> $ROOT/results_v2/results.json, predictions, checkpoints
-python scripts/make_figures.py    --root $ROOT     # -> $ROOT/results_v2/figures/*.png, analysis.json
+python tests/test_metrics.py     # evaluator == the evaluator used for the reported numbers (to 1e-12)
+python tests/test_windows.py     # multi-match pooling and boundary masking (9,976 / 9,944 / 9,880 windows)
+python scripts/smoke_test.py     # runs the WHOLE pipeline on synthetic data: train -> evaluate -> figures (typically a minute or two on CPU)
 ```
+Expected last lines: `All metric tests passed.`, `All window / pooling tests passed.`,
+`SMOKE TEST PASSED - the full pipeline runs end to end on this machine.`
+(The smoke test's numbers are meaningless; it only proves the code runs.)
 
-**On Colab:** mount Drive, `cd` into this folder, then run the same commands prefixed with `!`.
+## Data (required only to reproduce the reported numbers)
 
-**What each step does:**
+SoccerNet **Ball Action Spotting** (Cioppa et al., 2024), EFL Championship 2019-20. Access requires
+accepting the SoccerNet NDA (https://www.soccer-net.org); the videos and the archive password are **not**
+distributed with this code. We use 7 matches (4 train, 1 validation, 2 test), first 2,500 s of each.
+Only `224p.mp4` and `Labels-ball.json` of each match are needed:
 
-| Script | Purpose | Report section |
-|---|---|---|
-| `extract_features.py` | Samples 1 frame/s from the first 2,500 s of each game, extracts ResNet-18 features, builds per-second labels, and checks shapes, NaN/Inf and class mapping | §1 (Table 1) |
-| `run_experiment.py` | Reproduces the original single run, then runs 3 windows × 5 seeds on a common evaluation range, and computes the random-score floor | §3, §4 (Tables 4–6) |
-| `make_figures.py` | Produces Figs 2–5, per-class AP and seed-0 error diagnostics | §4 (Figs 2–5, Tables 7–8) |
-| `spot_video.py` | Applies a trained checkpoint to any video and writes a searchable event timeline; with labels, it also evaluates against the random floor | §4.7 (application, unseen data) |
+```
+<root>/extracted/train/england_efl/2019-2020/2019-10-01 - Blackburn Rovers - Nottingham Forest/{224p.mp4,Labels-ball.json}
+<root>/extracted/train/.../Brentford - Bristol City/   .../Hull City - Sheffield Wednesday/   .../Leeds United - West Bromwich/
+<root>/extracted/valid/.../Middlesbrough - Preston North End/
+<root>/extracted/test/.../Stoke City - Huddersfield Town/   .../Reading - Fulham/
+```
+> **Extraction note:** some SoccerNet archives use AES encryption, which Linux `unzip` and Python's
+> `zipfile` cannot read ("need PK compat. v5.1"). Use 7-Zip: `7z x train.zip -p<password> -o<dest>`.
 
-**Useful options:**
-- `--windows 5 7 9`
-- `--seeds 0 1 2`
-- `--epochs 12`
-- `--no_repro` (for `run_experiment.py`)
-- `--seconds 2500` and `--game split=relative/path` (for `extract_features.py`)
-
-## Expected results (reported run, T4, mean ± std over 5 seeds, validation game)
-
-| W | mAP@1s (A) | mAP@5s (A) | Average-mAP (A) | Average-mAP (B) |
-|---|---|---|---|---|
-| 7 | 0.058 ± 0.005 | 0.108 ± 0.005 | 0.148 ± 0.002 | 0.277 ± 0.009 |
-| 15 | 0.034 ± 0.003 | 0.088 ± 0.013 | 0.118 ± 0.007 | 0.243 ± 0.010 |
-| 31 | 0.033 ± 0.008 | 0.053 ± 0.011 | 0.080 ± 0.012 | 0.224 ± 0.014 |
-| random scores | 0.031 | 0.102 | 0.169 ± 0.010 | 0.225 ± 0.009 |
-
-**The two protocols:**
-- **Protocol A** is the pre-declared evaluator: every second is a candidate, with the top 200 per class ranked.
-- **Protocol B** is a post-hoc check: local maxima within ±1 s, uncapped.
-
-**Before reading the absolute numbers:** under Protocol A every condition is below the random-score
-floor on Average-mAP. The robust finding is the *relative* effect of W, not the absolute
-performance level (see report §4.4).
-
-Small numeric differences are expected on other hardware or library versions. We seed every run and
-enable deterministic cuDNN, but bit-exact results are only expected with the same GPU and versions.
-
-## Applying the model to new or unseen footage
+## Reproduce the report
 
 ```bash
-python scripts/spot_video.py --video <path>/224p.mp4 --ckpt $ROOT/results_v2/ckpt_W7_seed0.pt \
-       --labels <path>/Labels-ball.json --out my_match
+python scripts/extract_features.py --root /path/to/SoccerNet_Project          # 1. features + labels + integrity report
+python scripts/run_experiment.py   --features /path/to/SoccerNet_Project/features_v2 --out results_run   # 2. 15 runs
+python scripts/make_figures.py     --results results_run                      # 3. figures, tables, diagnostics
 ```
 
-The script writes three files to the `--out` folder:
-- `timeline.json`: detected events with time, class and score (`--threshold`, default 0.5);
-- `scores.npy`: per-second class probabilities;
-- `evaluation.json`: only when `--labels` is given; Protocol A and B metrics plus the random-score floor for that video.
+| Step | What it does | Time on a T4 GPU | Time on CPU (approx.) |
+|---|---|---|---|
+| 1 `extract_features.py` | 1 frame/s -> ResNet-18 -> 512-d per second; per-second labels; NaN/Inf and class-count checks | ~45 s per match | ~8 min per match (measured) |
+| 2 `run_experiment.py` | pools 4 training matches with boundary masking; 3 conditions x 5 seeds; evaluates each run on 3 matches (protocols A and B); random-score floors | ~3 min | not measured (expect several times slower than the GPU) |
+| 3 `make_figures.py` | Figures 2-5, main tables, relative changes, per-class AP, TP/FP/FN diagnostics | seconds | seconds |
 
-**Input requirements.** The model expects broadcast-style footage similar to the training data. Single-camera footage has not been tested.
+**Expected result (mean +- std over 5 seeds; Average-mAP over delta = 1,3,5,10,20,30 s)**
 
-## Repository structure
+| W | Validation A | Validation B | Test A (Stoke) A | Test A (Stoke) B | Test B (Reading) A | Test B (Reading) B |
+|---|---|---|---|---|---|---|
+| 7 | 0.1928 +- 0.0162 | 0.3458 +- 0.0162 | 0.1668 +- 0.0148 | 0.3090 +- 0.0149 | 0.1419 +- 0.0110 | 0.2806 +- 0.0081 |
+| 15 | 0.1706 +- 0.0069 | 0.3154 +- 0.0096 | 0.1067 +- 0.0112 | 0.2261 +- 0.0240 | 0.1102 +- 0.0165 | 0.2474 +- 0.0288 |
+| 31 | 0.1384 +- 0.0255 | 0.2695 +- 0.0279 | 0.0858 +- 0.0078 | 0.2127 +- 0.0127 | 0.0993 +- 0.0108 | 0.2476 +- 0.0167 |
+| random scores | 0.1694 | 0.2249 | 0.1661 | 0.2368 | 0.1516 | 0.2224 |
+
+A = pre-declared protocol (every second a candidate, top-200 per class); B = post-hoc protocol (local score
+maxima within +-1 s). The full set of numbers is in `results/results_v3.json`.
+
+**Reproducing one condition instead of all 15.** All conditions are scored on the same seconds, and that
+range is set by the largest window in the study (W = 31 -> 2,470 scored seconds per match). If you run a
+subset, pass `--eval-window 31`, otherwise a shorter range is scored and the numbers will not match:
+
+```bash
+python scripts/run_experiment.py --features <features_v2> --out check \
+       --windows 7 --seeds 0 --eval-window 31 --compare results/results_v3.json
+```
+
+**Reproduction target:** on a Tesla T4, seed 0 at W = 7 gives validation Average-mAP **A = 0.2143, B = 0.3698**
+and Stoke **A = 0.1656, B = 0.3074**. `--compare` prints the difference against every stored run. Exact
+agreement requires the same GPU model and library versions; small differences in the last digits come from
+non-deterministic GPU reductions and grow with the number of optimiser steps. The reproducible finding is the
+ordering of the conditions, which holds on every split and both protocols.
+
+## What the code does
 
 ```
-pitchvision/
-  data.py        class list, label binning, sliding-window Dataset
-  model.py       TemporalActionSpotter (Conv1D -> BN -> ReLU -> AvgPool -> MLP)
-  features.py    ResNet-18 backbone and 1-fps video feature extraction
-  metrics.py     tolerance-based AP / mAP / Average-mAP, peak picking, smoothness
-scripts/         extract_features.py, run_experiment.py, make_figures.py, spot_video.py
-tests/           test_metrics.py (packaged evaluator == original evaluator, to 1e-12)
-results/         evidence of the reported run (JSON summaries, figures, original notebook)
+pitchvision/            importable package
+  data.py               class list, label binning, multi-match pooling, boundary-masked window indices
+  model.py              TemporalActionSpotter: Conv1d(512->128,k=3) -> BatchNorm -> ReLU -> AdaptiveAvgPool1d
+                        -> Linear(128->64) -> ReLU -> Dropout(0.3) -> Linear(64->12)   (206,028 parameters)
+  training.py           seeded training loop, BCEWithLogitsLoss(pos_weight=15), Adam(lr 1e-3, wd 1e-4)
+  metrics.py            tolerance-based AP / mAP / Average-mAP, peak picking, score smoothness
+  features.py           ResNet-18 (ImageNet) frame features at 1 frame/second
+scripts/                command-line entry points (see above) + spot_video.py (apply a checkpoint to any video)
+tests/                  test_metrics.py, test_windows.py
+results/                evidence behind every number in the report (see results/README.md)
 ```
 
-**Framework usage.** Everything is built on standard PyTorch and torchvision components:
-- torchvision's pretrained `resnet18`;
-- `nn.Conv1d`, `nn.BatchNorm1d` and `nn.AdaptiveAvgPool1d` for the spotter;
-- `BCEWithLogitsLoss(pos_weight=...)` for the class-imbalance weighting;
-- `Dataset` and `DataLoader` for the input pipeline.
+**Framework use.** Standard PyTorch/torchvision building blocks throughout: pretrained `resnet18`,
+`nn.Conv1d` / `nn.BatchNorm1d` / `nn.AdaptiveAvgPool1d`, `BCEWithLogitsLoss(pos_weight=...)` for class
+imbalance, `Dataset` / `DataLoader`. `AdaptiveAvgPool1d` is what lets the same weights serve every window size,
+so W is the only variable that changes.
 
-## Provenance and limitations
+**Beyond a standard implementation**
+- *Boundary-masked pooled training:* four matches are concatenated with a match-id vector and any window whose
+  first and last frame belong to different matches is discarded, so no window blends two matches.
+- *Common evaluation seconds* for every W, so conditions are scored on identical data.
+- *Random-score floor* for every evaluation match, because on dense event vocabularies (one event every 2.5-3.4 s)
+  coarse-tolerance mAP is dominated by event density.
+- *Protocol B* (peak picking) as a post-hoc sensitivity check; the pre-declared protocol A is always reported too.
+- *Deterministic seeding* before every run, giving bit-exact reproduction on identical hardware.
 
-**Provenance.**
-- The original single run (CPU, seed 42) is `results/Soccer.ipynb`.
-- This package re-implements it with identical architecture, windowing, loss and hyper-parameters. `run_experiment.py` includes a reproduction of that configuration.
+**Application demo.** `python scripts/spot_video.py --video V.mp4 --ckpt results/checkpoints/v3_ckpt_W7_seed0.pt --out out`
+turns a match video into `out/timeline.json` (timestamped events with class and score). Add `--labels
+Labels-ball.json` to also score the video against a random floor.
 
-**Limitations.**
-- The results come from one training and one validation game (first ≈42 minutes each). The two test games were not used in the report.
-- The evaluation protocols are custom and not the official SoccerNet BAS metric.
-- GOAL has no training example in the training slice used.
-- See report §4.7 for further limitations.
+## Limitations (also stated in the report)
+
+The evaluation protocols are custom and not the official SoccerNet BAS metric, so the numbers are not comparable
+with published leaderboard results. All footage is multi-camera broadcast from one competition and one matchday;
+nothing here demonstrates single-camera performance. GOAL (1 training instance) and FREE KICK (5) are effectively
+unlearnable in this data. Random-floor draws are seeded per evaluation match; the validation and Reading floors
+reproduce exactly, while the Stoke floor was originally drawn from a continuing generator and re-draws to within
+its standard deviation (~0.011).
 
 ## Citation
 
-Giancola, S., Amine, M., Dghaily, T., & Ghanem, B. (2018). SoccerNet: A scalable dataset for action
-spotting in soccer videos. *CVPR Workshops*, 1711–1721.
+Giancola, S., Amine, M., Dghaily, T., Ghanem, B. (2018). *SoccerNet: A scalable dataset for action spotting in
+soccer videos.* CVPR Workshops, 1711-1721. Dataset: Cioppa, A. et al. (2024). *SoccerNet 2024 challenges results.*
+arXiv:2409.10587.

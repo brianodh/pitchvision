@@ -1,0 +1,13 @@
+{
+ "date": "2026-09-25",
+ "decision": "Keep GOAL and FREE KICK in the averaged mAP; report their data scarcity explicitly.",
+ "rationale": "GOAL has 1 training instance and 1 validation instance; FREE KICK has 5 training and 0 validation. Excluding them after the proposal was submitted would change the metric definition mid-study. They are retained for protocol consistency and disclosed as unlearnable in this data.",
+ "training_instances": {
+  "GOAL": 1,
+  "FREE KICK": 5
+ },
+ "validation_instances": {
+  "GOAL": 1,
+  "FREE KICK": 0
+ }
+}

@@ -1,15 +1,25 @@
-# --- Data & large media (never commit these) ---
+# --- Data & large media: NEVER commit these (SoccerNet NDA: non-commercial research only, no redistribution) ---
 data/**
 !data/README.md
 *.mp4
 *.mkv
 *.avi
-model/features_v2/
-model/results_v2/*.npy
-model/results_v2/*.pt
 *.npy
-*.pth
+*.zip
+*.7z
+model/features_v2/
+model/results_v2/
+
+# Model weights are ignored by default, EXCEPT the three small reference checkpoints behind the report
 *.pt
+*.pth
+!model/results/checkpoints/*.pt
+
+# --- Credentials: the notebook that contains the SoccerNet archive password must never be committed ---
+Viability_Test*.ipynb
+.env
+.env.local
+*.key
 
 # --- Python ---
 __pycache__/
@@ -33,8 +43,3 @@ frontend/build/
 Thumbs.db
 .vscode/
 .idea/
-
-# --- Secrets ---
-.env
-.env.local
-*.key

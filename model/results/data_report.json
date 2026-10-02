@@ -1,0 +1,74 @@
+{
+ "device": "cuda",
+ "classes": [
+  "BALL PLAYER BLOCK",
+  "CROSS",
+  "DRIVE",
+  "FREE KICK",
+  "GOAL",
+  "HEADER",
+  "HIGH PASS",
+  "OUT",
+  "PASS",
+  "PLAYER SUCCESSFUL TACKLE",
+  "SHOT",
+  "THROW IN"
+ ],
+ "T_SEC": 2500,
+ "train": {
+  "game": "train/england_efl/2019-2020/2019-10-01 - Blackburn Rovers - Nottingham Forest",
+  "fps": 25.0,
+  "X_shape": [
+   2500,
+   512
+  ],
+  "nan_inf": 0,
+  "ORIGINAL_MAPPING_OK": true,
+  "classes_absent_in_full_match": [],
+  "events_in_slice": 878,
+  "same_second_collisions": 14,
+  "positives_per_class_in_slice": {
+   "BALL PLAYER BLOCK": 10,
+   "CROSS": 17,
+   "DRIVE": 320,
+   "FREE KICK": 1,
+   "GOAL": 0,
+   "HEADER": 47,
+   "HIGH PASS": 47,
+   "OUT": 30,
+   "PASS": 355,
+   "PLAYER SUCCESSFUL TACKLE": 11,
+   "SHOT": 6,
+   "THROW IN": 20
+  },
+  "extract_seconds": 51.3
+ },
+ "valid": {
+  "game": "valid/england_efl/2019-2020/2019-10-01 - Middlesbrough - Preston North End",
+  "fps": 25.0,
+  "X_shape": [
+   2500,
+   512
+  ],
+  "nan_inf": 0,
+  "ORIGINAL_MAPPING_OK": true,
+  "classes_absent_in_full_match": [],
+  "events_in_slice": 727,
+  "same_second_collisions": 2,
+  "positives_per_class_in_slice": {
+   "BALL PLAYER BLOCK": 12,
+   "CROSS": 10,
+   "DRIVE": 259,
+   "FREE KICK": 0,
+   "GOAL": 1,
+   "HEADER": 50,
+   "HIGH PASS": 53,
+   "OUT": 34,
+   "PASS": 263,
+   "PLAYER SUCCESSFUL TACKLE": 9,
+   "SHOT": 9,
+   "THROW IN": 25
+  },
+  "extract_seconds": 42.3
+ }
+}

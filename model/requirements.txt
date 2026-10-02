@@ -1,6 +1,9 @@
-# Tested on Google Colab (Tesla T4 GPU). Exact torch version of the reported run: see results.json -> "torch".
+# The reported results were produced on Python 3.13 with a Google Colab Tesla T4 GPU; Python 3.10+ should work.
+# A GPU is recommended but NOT required (all scripts also run on CPU, just more slowly).
+# For a CUDA build of PyTorch, install torch/torchvision from https://pytorch.org first.
 torch>=2.0
 torchvision>=0.15
 opencv-python>=4.7
 numpy>=1.24
 matplotlib>=3.7
+# optional: pytest   (the tests also run directly with `python tests/<file>.py`)

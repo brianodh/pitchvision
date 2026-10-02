@@ -70,6 +70,6 @@ if args.labels:
           'random_A_avg': float(np.mean(ra)), 'random_A_avg_std': float(np.std(ra)),
           'random_B_avg': float(np.mean(rb)), 'random_B_avg_std': float(np.std(rb))}
     json.dump(ev, open(os.path.join(args.out, 'evaluation.json'), 'w'), indent=1)
-    print(f"Protocol A Avg-mAP {a['avg']:.4f} (random {np.mean(ra):.4f}±{np.std(ra):.4f}) | "
-          f"Protocol B Avg-mAP {b['avg']:.4f} (random {np.mean(rb):.4f}±{np.std(rb):.4f}) | "
+    print(f"Protocol A Avg-mAP {a['avg']:.4f} (random {np.mean(ra):.4f}+-{np.std(ra):.4f}) | "
+          f"Protocol B Avg-mAP {b['avg']:.4f} (random {np.mean(rb):.4f}+-{np.std(rb):.4f}) | "
           f"B mAP@1s {b[1]['mAP']:.4f}, mAP@5s {b[5]['mAP']:.4f}")

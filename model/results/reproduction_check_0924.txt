@@ -1,0 +1,9 @@
+Reproduction check - 2026-09-24
+Device: cuda Tesla T4
+Retrained seed 0 with identical hyperparameters; compared to saved pred_W{W}_seed0.npy.
+
+W= 7  max|new - reported| = 0.000000   corr = 1.000000   -> ckpt_W7_seed0.pt saved
+W=15  max|new - reported| = 0.000000   corr = 1.000000   -> ckpt_W15_seed0.pt saved
+W=31  max|new - reported| = 0.000000   corr = 1.000000   -> ckpt_W31_seed0.pt saved
+
+Conclusion: released checkpoints are bit-identical to the models behind the reported results.
