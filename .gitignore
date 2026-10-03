@@ -43,3 +43,4 @@ frontend/build/
 Thumbs.db
 .vscode/
 .idea/
+.venv/
