@@ -69,7 +69,7 @@ def download_youtube_video(url, output_dir):
 
             downloaded_path = ydl.prepare_filename(info)
 
-            # yt-dlp may merge the video into MP4
+            # yt-dlp  merges the video into MP4
             possible_mp4 = os.path.splitext(
                 downloaded_path
             )[0] + ".mp4"
@@ -497,10 +497,6 @@ with st.sidebar:
 
 
 # =========================================================
-# VIDEO UPLOAD
-# =========================================================
-
-# =========================================================
 # MATCH FOOTAGE INPUT
 # =========================================================
 
@@ -692,7 +688,7 @@ if st.button(
         )
 
         # =================================================
-        # RUN MODEL
+        # RUN THE MODEL
         # =================================================
 
         with st.spinner(
@@ -982,7 +978,7 @@ st.divider()
 
 
 # =========================================================
-# SEARCH + FILTER
+# SEARCH & FILTER
 # =========================================================
 
 st.markdown(
