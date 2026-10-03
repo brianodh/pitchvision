@@ -1,0 +1,1216 @@
+import json
+import os
+import sys
+import tempfile
+from collections import Counter
+
+import streamlit as st
+import yt_dlp
+
+
+# =========================================================
+# PROJECT / MODEL PATH
+# =========================================================
+
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.abspath(__file__)
+        )
+    )
+)
+
+MODEL_DIR = os.path.join(
+    PROJECT_ROOT,
+    "model",
+)
+
+sys.path.insert(
+    0,
+    MODEL_DIR,
+)
+
+
+
+# =========================================================
+# YOUTUBE DOWNLOAD
+# =========================================================
+
+def download_youtube_video(url, output_dir):
+    """
+    Download a YouTube video into the supplied temporary directory.
+
+    Returns:
+        str: Path to the downloaded video.
+    """
+
+    output_template = os.path.join(
+        output_dir,
+        "youtube_match.%(ext)s",
+    )
+
+    ydl_opts = {
+        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        "outtmpl": output_template,
+        "merge_output_format": "mp4",
+        "noplaylist": True,
+        "quiet": True,
+        "no_warnings": True,
+    }
+
+    try:
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+
+            info = ydl.extract_info(
+                url,
+                download=True,
+            )
+
+            downloaded_path = ydl.prepare_filename(info)
+
+            # yt-dlp may merge the video into MP4
+            possible_mp4 = os.path.splitext(
+                downloaded_path
+            )[0] + ".mp4"
+
+            if os.path.exists(possible_mp4):
+                return possible_mp4
+
+            if os.path.exists(downloaded_path):
+                return downloaded_path
+
+            raise FileNotFoundError(
+                "Downloaded video could not be located."
+            )
+
+    except Exception as e:
+
+        raise RuntimeError(
+            f"Unable to download the YouTube video: {e}"
+        ) from e
+
+
+# =========================================================
+# PAGE CONFIGURATION
+# =========================================================
+
+st.set_page_config(
+    page_title="PitchVision | Football Intelligence",
+    page_icon="⚽",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+
+# =========================================================
+# CUSTOM CSS
+# =========================================================
+
+st.markdown(
+    """
+    <style>
+
+    /* =====================================================
+       PITCHVISION DESIGN SYSTEM
+       ===================================================== */
+
+    .stApp {
+        background:
+            radial-gradient(
+                circle at 85% 5%,
+                rgba(16, 185, 129, 0.08),
+                transparent 28%
+            ),
+            #0b1117;
+        color: #f3f4f6;
+    }
+
+    .block-container {
+        max-width: 1450px;
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+    }
+
+    /* Hide Streamlit default elements */
+
+    #MainMenu {
+        visibility: hidden;
+    }
+
+    footer {
+        visibility: hidden;
+    }
+
+    header {
+        background: transparent !important;
+    }
+
+    /* =====================================================
+       BRAND
+       ===================================================== */
+
+    .pv-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .pv-logo {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #10b981;
+        color: #06110d;
+        font-size: 1.65rem;
+        font-weight: 900;
+        box-shadow: 0 8px 30px rgba(16, 185, 129, 0.22);
+    }
+
+    .pv-brand {
+        font-size: 2rem;
+        font-weight: 850;
+        letter-spacing: -1px;
+        color: #ffffff;
+    }
+
+    .pv-subtitle {
+        color: #94a3b8;
+        font-size: 0.9rem;
+        margin-top: 0.1rem;
+    }
+
+    /* =====================================================
+       HERO
+       ===================================================== */
+
+    .pv-hero {
+        border: 1px solid #1e293b;
+        border-radius: 18px;
+        padding: 2rem;
+        margin: 1.2rem 0 1.5rem 0;
+        background:
+            linear-gradient(
+                135deg,
+                rgba(16, 185, 129, 0.13),
+                rgba(15, 23, 42, 0.75)
+            );
+    }
+
+    .pv-hero-title {
+        font-size: 1.65rem;
+        font-weight: 800;
+        color: #ffffff;
+    }
+
+    .pv-hero-text {
+        color: #94a3b8;
+        max-width: 720px;
+        line-height: 1.6;
+        margin-top: 0.5rem;
+    }
+
+    /* =====================================================
+       SECTION TITLES
+       ===================================================== */
+
+    .section-title {
+        color: #f8fafc;
+        font-size: 1.1rem;
+        font-weight: 750;
+        margin-top: 1.3rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .section-label {
+        color: #10b981;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 800;
+        margin-bottom: 0.35rem;
+    }
+
+    /* =====================================================
+       METRIC CARDS
+       ===================================================== */
+
+    .metric-card {
+        background: #111923;
+        border: 1px solid #1e293b;
+        border-radius: 15px;
+        padding: 1.15rem;
+        min-height: 115px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    }
+
+    .metric-label {
+        color: #94a3b8;
+        font-size: 0.72rem;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .metric-value {
+        color: #ffffff;
+        font-size: 1.8rem;
+        font-weight: 850;
+        margin-top: 0.35rem;
+    }
+
+    .metric-description {
+        color: #64748b;
+        font-size: 0.76rem;
+        margin-top: 0.25rem;
+    }
+
+    /* =====================================================
+       PANELS
+       ===================================================== */
+
+    .pv-panel {
+        background: #111923;
+        border: 1px solid #1e293b;
+        border-radius: 15px;
+        padding: 1.2rem;
+    }
+
+    /* =====================================================
+       TIMELINE
+       ===================================================== */
+
+    .timeline-container {
+        background: #111923;
+        border: 1px solid #1e293b;
+        border-radius: 15px;
+        padding: 1.2rem;
+    }
+
+    .timeline-item {
+    position: relative;
+    border-left: 2px solid #10b981;
+    padding: 0.65rem 0 0.65rem 1.25rem;
+    margin-left: 0.55rem;
+    margin-bottom: 0.2rem;
+    }
+
+    .timeline-dot {
+    position: absolute;
+    left: -11px;
+    top: 0.75rem;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #111923;
+    border: 2px solid #10b981;
+    font-size: 0.65rem;
+    }
+
+    
+    .timeline-time {
+        color: #10b981;
+        font-weight: 800;
+        font-size: 0.85rem;
+    }
+
+    .timeline-event {
+        color: #f8fafc;
+        font-weight: 700;
+        margin-left: 0.7rem;
+    }
+
+    .timeline-confidence {
+        color: #64748b;
+        font-size: 0.78rem;
+        margin-top: 0.15rem;
+    }
+
+    /* =====================================================
+       UPLOAD STATE
+       ===================================================== */
+
+    .upload-state {
+        border: 1px dashed #334155;
+        border-radius: 18px;
+        padding: 3rem 2rem;
+        text-align: center;
+        background: rgba(15, 23, 42, 0.55);
+    }
+
+    .upload-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.7rem;
+    }
+
+    .upload-title {
+        color: #f8fafc;
+        font-size: 1.2rem;
+        font-weight: 750;
+    }
+
+    .upload-text {
+        color: #64748b;
+        margin-top: 0.4rem;
+    }
+
+    /* =====================================================
+       SIDEBAR
+       ===================================================== */
+
+    [data-testid="stSidebar"] {
+        background: #080e14;
+        border-right: 1px solid #1e293b;
+    }
+
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: #ffffff;
+    }
+
+    /* =====================================================
+       BUTTONS
+       ===================================================== */
+
+    .stButton > button {
+        border-radius: 10px;
+        font-weight: 750;
+    }
+
+    /* =====================================================
+       TABLE
+       ===================================================== */
+
+    [data-testid="stDataFrame"] {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    /* =====================================================
+       FOOTER
+       ===================================================== */
+
+    .pv-footer {
+        text-align: center;
+        color: #475569;
+        font-size: 0.75rem;
+        padding: 1.5rem 0 0.5rem;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# =========================================================
+# HEADER
+# =========================================================
+st.markdown(
+    """
+    <div class="pv-header">
+        <div class="pv-logo">⚽</div>
+        <div>
+            <div class="pv-brand">PitchVision</div>
+            <div class="pv-subtitle">
+                Football intelligence powered by computer vision
+            </div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    '<div class="section-label">MATCH INTELLIGENCE</div>',
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    "### Turn football footage into searchable match insights."
+)
+
+st.markdown(
+    """
+    PitchVision detects football events from match video
+    and transforms them into a structured timeline for
+    analysts, coaches, scouts and football audiences.
+    """
+)
+
+st.divider()
+
+st.divider()
+
+
+# =========================================================
+# SIDEBAR
+# =========================================================
+
+with st.sidebar:
+
+    st.header("⚙️ Analysis")
+
+    checkpoint_path = st.text_input(
+    "Model checkpoint",
+    value=os.path.join(
+        PROJECT_ROOT,
+        "model",
+        "results",
+        "checkpoints",
+        "v3_ckpt_W7_seed0.pt",
+    ),
+    help="Path to the trained PitchVision v3 checkpoint.",
+)
+
+    threshold = st.slider(
+        "Detection threshold",
+        min_value=0.1,
+        max_value=0.9,
+        value=0.5,
+        step=0.05,
+    )
+
+    max_seconds = st.number_input(
+        "Maximum duration",
+        min_value=0,
+        value=0,
+        step=30,
+        help="0 = process the complete video.",
+    )
+
+    st.divider()
+
+    st.caption(
+        "PitchVision AI League 2026"
+    )
+
+    st.caption(
+        "Football event spotting and match insights"
+    )
+
+
+# =========================================================
+# VIDEO UPLOAD
+# =========================================================
+
+# =========================================================
+# MATCH FOOTAGE INPUT
+# =========================================================
+
+st.markdown(
+    '<div class="section-title">🎥 Match Footage</div>',
+    unsafe_allow_html=True,
+)
+
+input_tab1, input_tab2 = st.tabs(
+    [
+        "📁 Upload Video",
+        "▶️ YouTube Link",
+    ]
+)
+
+
+# =========================================================
+# LOCAL VIDEO UPLOAD
+# =========================================================
+
+with input_tab1:
+
+    uploaded_video = st.file_uploader(
+        "Upload match video",
+        type=[
+            "mp4",
+            "mov",
+            "avi",
+            "mkv",
+        ],
+        help="Upload a football match recording from your computer.",
+    )
+
+    youtube_url = ""
+
+
+# =========================================================
+# YOUTUBE INPUT
+# =========================================================
+
+with input_tab2:
+
+    uploaded_video = None
+
+    youtube_url = st.text_input(
+        "YouTube video URL",
+        placeholder="https://www.youtube.com/watch?v=...",
+        help="Paste the URL of a publicly accessible YouTube match video.",
+    )
+
+    if youtube_url:
+
+        st.info(
+            "The YouTube video will be downloaded temporarily "
+            "when you click **Analyze Match**."
+        )
+
+# =========================================================
+# CHECK FOOTAGE INPUT
+# =========================================================
+
+if uploaded_video is None and not youtube_url:
+
+    st.markdown(
+        '<div class="section-title">🎥 Start a Match Analysis</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.info(
+        """
+        Upload a football match recording or provide a YouTube
+        link to begin the analysis.
+        """
+    )
+
+    st.stop()
+# =========================================================
+# VIDEO PREVIEW
+# =========================================================
+
+if uploaded_video is not None:
+
+    st.markdown(
+        '<div class="section-title">Match Video</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.video(uploaded_video)
+
+elif youtube_url:
+
+    st.markdown(
+        '<div class="section-title">YouTube Match</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.video(youtube_url)
+
+st.divider()
+
+# =========================================================
+# ANALYZE BUTTON
+# =========================================================
+
+if st.button(
+    "🔍 Analyze Match",
+    type="primary",
+    use_container_width=True,
+):
+
+    if not os.path.exists(checkpoint_path):
+
+        st.error(
+            "Model checkpoint not found."
+        )
+
+        st.info(
+            f"Expected checkpoint: `{checkpoint_path}`"
+        )
+
+        st.stop()
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+
+        # =====================================================
+        # PREPARE VIDEO INPUT
+        # =====================================================
+
+        if uploaded_video is not None:
+
+            # -----------------------------------------------
+            # LOCAL UPLOAD
+            # -----------------------------------------------
+
+            video_path = os.path.join(
+                temp_dir,
+                uploaded_video.name,
+            )
+
+            with open(
+                video_path,
+                "wb",
+            ) as f:
+
+                f.write(
+                    uploaded_video.getbuffer()
+                )
+
+            video_source = uploaded_video.name
+
+        else:
+
+            # -----------------------------------------------
+            # YOUTUBE VIDEO
+            # -----------------------------------------------
+
+            with st.spinner(
+                "Downloading the YouTube match video..."
+            ):
+
+                try:
+
+                    video_path = download_youtube_video(
+                        youtube_url,
+                        temp_dir,
+                    )
+
+                    video_source = youtube_url
+
+                except Exception as e:
+
+                    st.error(
+                        "Could not retrieve the YouTube video."
+                    )
+
+                    st.exception(e)
+
+                    st.stop()
+
+        output_dir = os.path.join(
+            temp_dir,
+            "output",
+        )
+
+        duration = (
+            None
+            if max_seconds == 0
+            else max_seconds
+        )
+
+        # =================================================
+        # RUN MODEL
+        # =================================================
+
+        with st.spinner(
+            "PitchVision is analyzing the match..."
+        ):
+
+            try:
+
+                result = run_inference(
+                    video_path=video_path,
+                    ckpt_path=checkpoint_path,
+                    out_dir=output_dir,
+                    threshold=threshold,
+                    max_seconds=duration,
+                )
+
+            except Exception as e:
+
+                st.error(
+                    "Analysis failed."
+                )
+
+                st.exception(e)
+
+                st.stop()
+
+        # =====================================================
+        # RESULTS
+        # =====================================================
+
+        timeline = result["timeline"]
+
+        events = timeline.get(
+            "events",
+            [],
+        )
+
+        # Store results for the current session
+        st.session_state["timeline"] = timeline
+        st.session_state["events"] = events
+        st.session_state["result"] = result
+
+
+# =========================================================
+# DISPLAY RESULTS
+# =========================================================
+
+if "events" not in st.session_state:
+
+    st.info(
+        "Click **Analyze Match** to generate the PitchVision analysis."
+    )
+
+    st.stop()
+
+
+events = st.session_state["events"]
+timeline = st.session_state["timeline"]
+result = st.session_state["result"]
+
+
+# =========================================================
+# ANALYSIS HEADER
+# =========================================================
+
+st.markdown(
+    f"""
+    <div class="section-title">
+        📊 Match Analysis
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+if uploaded_video is not None:
+
+    source_name = uploaded_video.name
+
+else:
+
+    source_name = youtube_url
+
+st.caption(
+    f"Analysis generated from: {source_name}"
+)
+
+
+# =========================================================
+# SUMMARY METRICS
+# =========================================================
+
+class_counts = Counter(
+    event["class"]
+    for event in events
+)
+
+unique_classes = len(class_counts)
+
+avg_confidence = (
+    sum(
+        event["score"]
+        for event in events
+    ) / len(events)
+    if events
+    else 0
+)
+
+
+duration_text = "N/A"
+
+if events:
+
+    last_time = max(
+        event["time_s"]
+        for event in events
+    )
+
+    duration_text = (
+        f"{last_time // 60:02d}:"
+        f"{last_time % 60:02d}"
+    )
+
+
+col1, col2, col3, col4 = st.columns(4)
+
+
+with col1:
+
+    st.markdown(
+        f"""
+        <div class="metric-card">
+            <div class="metric-label">
+                Events detected
+            </div>
+
+            <div class="metric-value">
+                {len(events)}
+            </div>
+
+            <div class="metric-description">
+                Detected football actions
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+with col2:
+
+    st.markdown(
+        f"""
+        <div class="metric-card">
+            <div class="metric-label">
+                Event types
+            </div>
+
+            <div class="metric-value">
+                {unique_classes}
+            </div>
+
+            <div class="metric-description">
+                Distinct action classes
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+with col3:
+
+    st.markdown(
+        f"""
+        <div class="metric-card">
+            <div class="metric-label">
+                Avg confidence
+            </div>
+
+            <div class="metric-value">
+                {avg_confidence:.0%}
+            </div>
+
+            <div class="metric-description">
+                Across detected events
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+with col4:
+
+    st.markdown(
+        f"""
+        <div class="metric-card">
+            <div class="metric-label">
+                Timeline span
+            </div>
+
+            <div class="metric-value">
+                {duration_text}
+            </div>
+
+            <div class="metric-description">
+                Last detected event
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+st.divider()
+
+
+# =========================================================
+# EVENT BREAKDOWN + VIDEO
+# =========================================================
+
+left, right = st.columns(
+    [1, 2],
+    gap="large",
+)
+
+
+with left:
+
+    st.markdown(
+        '<div class="section-title">📈 Event Breakdown</div>',
+        unsafe_allow_html=True,
+    )
+
+    if class_counts:
+
+        sorted_counts = sorted(
+            class_counts.items(),
+            key=lambda x: x[1],
+            reverse=True,
+        )
+
+        for event_class, count in sorted_counts:
+
+            percentage = (
+                count / len(events)
+                if events
+                else 0
+            )
+
+            st.write(
+                f"**{event_class}**"
+            )
+
+            st.progress(
+                percentage,
+                text=f"{count} events",
+            )
+
+    else:
+
+        st.info(
+            "No event classes detected."
+        )
+
+
+with right:
+
+    st.markdown(
+        '<div class="section-title">🎥 Match Footage</div>',
+        unsafe_allow_html=True,
+    )
+
+    if uploaded_video is not None:
+
+        st.video(
+            uploaded_video
+        )
+
+    else:
+
+        st.video(
+            youtube_url
+        )
+
+st.divider()
+
+
+# =========================================================
+# SEARCH + FILTER
+# =========================================================
+
+st.markdown(
+    '<div class="section-title">🔎 Event Explorer</div>',
+    unsafe_allow_html=True,
+)
+
+filter_col, search_col = st.columns(
+    [1, 2]
+)
+
+
+with filter_col:
+
+    event_options = [
+        "All events"
+    ] + sorted(
+        class_counts.keys()
+    )
+
+    selected_class = st.selectbox(
+        "Event type",
+        event_options,
+    )
+
+
+with search_col:
+
+    search_term = st.text_input(
+        "Search events",
+        placeholder="e.g. shot, pass, tackle...",
+    )
+
+
+filtered_events = events
+
+
+if selected_class != "All events":
+
+    filtered_events = [
+        event
+        for event in filtered_events
+        if event["class"] == selected_class
+    ]
+
+
+if search_term:
+
+    filtered_events = [
+        event
+        for event in filtered_events
+        if search_term.lower()
+        in event["class"].lower()
+    ]
+
+
+st.caption(
+    f"Showing {len(filtered_events)} of {len(events)} detected events"
+)
+
+
+# =========================================================
+# TIMELINE
+# =========================================================
+
+if filtered_events:
+
+    st.markdown(
+        '<div class="section-title">⏱️ Match Timeline</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        '<div class="timeline-container">',
+        unsafe_allow_html=True,
+    )
+
+    for event in filtered_events:
+
+        confidence = event["score"]
+
+        st.markdown(
+            f"""
+            <div class="timeline-item">
+
+                <span class="timeline-dot">
+                    ⚽
+                </span>
+
+                <strong>
+                    {event["mmss"]}
+                </strong>
+
+                &nbsp;&nbsp;
+
+                <strong>
+                    {event["class"]}
+                </strong>
+
+                <br>
+
+                <small>
+                    Confidence:
+                    {confidence:.0%}
+                </small>
+
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+else:
+
+    st.markdown(
+        """
+        <div class="empty-state">
+            No events match the current filter.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+st.divider()
+
+
+# =========================================================
+# EVENT TABLE
+# =========================================================
+
+st.markdown(
+    '<div class="section-title">📋 Detected Events</div>',
+    unsafe_allow_html=True,
+)
+
+if filtered_events:
+
+    table_data = [
+        {
+            "Time": event["mmss"],
+            "Event": event["class"],
+            "Confidence": f"{event['score']:.1%}",
+        }
+        for event in filtered_events
+    ]
+
+    st.dataframe(
+        table_data,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+else:
+
+    st.info(
+        "No events to display."
+    )
+
+
+# =========================================================
+# DOWNLOADS
+# =========================================================
+
+st.divider()
+
+st.markdown(
+    '<div class="section-title">📥 Export Results</div>',
+    unsafe_allow_html=True,
+)
+
+download_col1, download_col2 = st.columns(2)
+
+
+with download_col1:
+
+    timeline_json = json.dumps(
+        timeline,
+        indent=2,
+    )
+
+    st.download_button(
+        "⬇️ Download Timeline JSON",
+        data=timeline_json,
+        file_name="pitchvision_timeline.json",
+        mime="application/json",
+        use_container_width=True,
+    )
+
+
+with download_col2:
+
+    csv_lines = [
+        "time_s,mmss,class,score"
+    ]
+
+    for event in events:
+
+        csv_lines.append(
+            f"{event['time_s']},"
+            f"{event['mmss']},"
+            f"{event['class']},"
+            f"{event['score']}"
+        )
+
+    csv_data = "\n".join(
+        csv_lines
+    )
+
+    st.download_button(
+        "⬇️ Download Events CSV",
+        data=csv_data,
+        file_name="pitchvision_events.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+
+# =========================================================
+# FOOTER
+# =========================================================
+
+st.divider()
+
+st.caption(
+    "PitchVision • AI-powered football event spotting • PARC 2026"
+)
