@@ -523,7 +523,37 @@ with input_tab1:
 
     uploaded_video = st.file_uploader(
         "Upload match video",
-        type=[
+        type=[st.markdown(
+    textwrap.dedent(
+        f"""
+        <div class="timeline-item">
+
+            <span class="timeline-dot">
+                ⚽
+            </span>
+
+            <strong>
+                {event["mmss"]}
+            </strong>
+
+            &nbsp;&nbsp;
+
+            <strong>
+                {event["class"]}
+            </strong>
+
+            <br>
+
+            <small>
+                Confidence:
+                {confidence:.0%}
+            </small>
+
+        </div>
+        """
+    ),
+    unsafe_allow_html=True,
+)
             "mp4",
             "mov",
             "avi",
@@ -822,7 +852,7 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
 
     st.markdown(
-        f"""
+        textwrap.dedent(f"""
         <div class="metric-card">
             <div class="metric-label">
                 Events detected
@@ -836,7 +866,7 @@ with col1:
                 Detected football actions
             </div>
         </div>
-        """,
+        """,)
         unsafe_allow_html=True,
     )
 
@@ -844,7 +874,7 @@ with col1:
 with col2:
 
     st.markdown(
-        f"""
+       textwrap.dedent( f"""
         <div class="metric-card">
             <div class="metric-label">
                 Event types
@@ -858,7 +888,7 @@ with col2:
                 Distinct action classes
             </div>
         </div>
-        """,
+        """,)
         unsafe_allow_html=True,
     )
 
@@ -866,7 +896,7 @@ with col2:
 with col3:
 
     st.markdown(
-        f"""
+        textwrap.dedent(f"""
         <div class="metric-card">
             <div class="metric-label">
                 Avg confidence
@@ -880,7 +910,7 @@ with col3:
                 Across detected events
             </div>
         </div>
-        """,
+        """,)
         unsafe_allow_html=True,
     )
 
@@ -888,7 +918,7 @@ with col3:
 with col4:
 
     st.markdown(
-        f"""
+        textwrap.dedent(f"""
         <div class="metric-card">
             <div class="metric-label">
                 Timeline span
@@ -902,7 +932,7 @@ with col4:
                 Last detected event
             </div>
         </div>
-        """,
+        """,)
         unsafe_allow_html=True,
     )
 
