@@ -1,0 +1,6 @@
+[server]
+# Streamlit's default upload limit is 200 MB, which rejects most match videos. Raised to 2 GB (value is in MB).
+maxUploadSize = 2048
+
+[browser]
+gatherUsageStats = false
