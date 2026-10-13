@@ -48,6 +48,6 @@ frontend/build/
 Thumbs.db
 .vscode/
 .idea/
-.venv/gi
+.venv/
 venv/
 .venv311/
