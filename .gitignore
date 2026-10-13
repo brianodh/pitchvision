@@ -25,9 +25,13 @@ Viability_Test*.ipynb
 __pycache__/
 *.py[cod]
 *.egg-info/
-.venv/
+.venv311/
 venv/
 .pytest_cache/
+
+# Streamlit agent skills (environment-specific symlinks)
+.agents/skills/developing-with-streamlit
+.claude/skills/developing-with-streamlit
 
 # --- Node / frontend ---
 node_modules/
@@ -43,4 +47,4 @@ frontend/build/
 Thumbs.db
 .vscode/
 .idea/
-.venv/
+.venv311/
