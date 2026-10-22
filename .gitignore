@@ -49,5 +49,6 @@ Thumbs.db
 .vscode/
 .idea/
 .venv/
-venv/
 .venv311/
+venv/
+
