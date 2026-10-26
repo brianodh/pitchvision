@@ -31,12 +31,36 @@ sys.path.insert(
     MODEL_DIR,
 )
 
-from scripts.spot_video import run_inference
+try:
+    from scripts.spot_video import run_inference as run_inference_v3
+except Exception as _v3_err:
+    run_inference_v3, _v3_error = None, _v3_err
+try:
+    from pitchvision.v8 import run_inference_v8
+except Exception as _v8_err:
+    run_inference_v8, _v8_error = None, _v8_err
+try:
+    from pitchvision.v9 import run_inference_v9
+except Exception as _v9_err:
+    run_inference_v9, _v9_error = None, _v9_err
 
 
 # =========================================================
 # YOUTUBE DOWNLOAD
 # =========================================================
+
+# Optional cookies file used to authenticate yt-dlp as a signed-in browser
+# session. YouTube increasingly blocks anonymous download requests with a
+# "Sign in to confirm you're not a bot" error; passing cookies exported
+# from a real, logged-in browser session avoids that. The file is expected
+# at the project root and is never required to exist — if it's missing,
+# downloads simply proceed without cookies (and may hit the bot-check
+# error on some videos).
+COOKIES_FILE = os.path.join(
+    PROJECT_ROOT,
+    "cookies.txt",
+)
+
 
 def download_youtube_video(url, output_dir):
     """
@@ -59,6 +83,12 @@ def download_youtube_video(url, output_dir):
         "quiet": True,
         "no_warnings": True,
     }
+
+    # Attach the cookies file only if one has actually been placed in the
+    # project root. This keeps the app working even for anyone who hasn't
+    # set up cookies, while picking it up automatically once it exists.
+    if os.path.exists(COOKIES_FILE):
+        ydl_opts["cookiefile"] = COOKIES_FILE
 
     try:
 
@@ -682,16 +712,36 @@ with st.sidebar:
     st.markdown("## ⚙️ Analysis Settings")
     st.caption("Advanced controls. Default settings are suitable for normal use.")
 
+    ENGINES = {
+        "PitchVision v3 · fast (CPU-friendly)": ("v3", os.path.join("results", "checkpoints", "v3_ckpt_W7_seed0.pt")),
+        "PitchVision v8 · accurate (GPU recommended)": ("v8", os.path.join("results", "checkpoints", "pitchvision_v8_final.pt")),
+        "PitchVision v9 · research (GPU + T-DEED required)": ("v9", os.path.join("results", "checkpoints", "v9_tdeed_head_seed0.pt")),
+    }
+    engine_label = st.selectbox("Model", list(ENGINES))
+    engine, _ckpt_rel = ENGINES[engine_label]
+
+    if engine == "v9":
+        if not os.environ.get("TDEED_ROOT"):
+            st.warning(
+                "v9 reads its features from the T-DEED backbone, which is not bundled. "
+                "Set the TDEED_ROOT environment variable to a checkout of "
+                "github.com/arturxe2/T-DEED with its SoccerNetBall_test checkpoint in place, "
+                "then restart the app. Until then, use v3 or v8."
+            )
+        st.caption(
+            "v9 runs T-DEED's 12.3M-parameter backbone over every frame: roughly 0.6x real time "
+            "on a GPU, and impractical on CPU. Keep the duration short."
+        )
+
     checkpoint_path = st.text_input(
         "Model checkpoint",
         value=os.path.join(
             PROJECT_ROOT,
             "model",
-            "results",
-            "checkpoints",
-            "v3_ckpt_W7_seed0.pt",
+            _ckpt_rel,
         ),
-        help="Path to the trained PitchVision v3 checkpoint.",
+        help=f"Path to the trained PitchVision {engine} checkpoint.",
+        key=f"checkpoint_{engine}",
     )
 
     threshold = st.slider(
@@ -867,6 +917,16 @@ if st.button(
             "PitchVision is analyzing the match. This may take a while..."
         ):
             try:
+                _engines = {
+                    "v3": (run_inference_v3, _v3_error if run_inference_v3 is None else None),
+                    "v8": (run_inference_v8, _v8_error if run_inference_v8 is None else None),
+                    "v9": (run_inference_v9, _v9_error if run_inference_v9 is None else None),
+                }
+                run_inference, _load_error = _engines[engine]
+                if run_inference is None:
+                    raise RuntimeError(
+                        f"The {engine} model could not be loaded: {_load_error}"
+                    )
                 result = run_inference(
                     video_path=video_path,
                     ckpt_path=checkpoint_path,
