@@ -1,0 +1,7 @@
+# Extra dependencies for the v8 model, on top of the base requirements.
+tensorflow>=2.16     # ResNet-152 features; the ImageNet weights (~240 MB) are downloaded on first use
+SoccerNet            # FrameCV, the video reader the feature recipe was validated with
+opencv-python>=4.7
+torch>=2.0
+numpy>=1.24
+# ffmpeg must also be installed on the system (not a pip package).
