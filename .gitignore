@@ -50,3 +50,7 @@ Thumbs.db
 .idea/
 .venv/
 cookies.txt
+out_new/
+out_old/
+out_v9/
+Pitch_Vision_Project*.ipynb

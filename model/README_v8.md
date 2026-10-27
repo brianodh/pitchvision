@@ -37,7 +37,8 @@ The Streamlit app offers v8 and v3 in its sidebar.
 | v8, this checkpoint (seed 0) | 0.309 | 0.332 | 0.261 |
 
 Choices (window, architecture, pre-training length, trunk size, which checkpoint) were made using the validation match, so
-the validation column is optimistic. Leave-one-match-out cross-validation has not been run yet.
+the validation column is optimistic. See "What this dataset can resolve" below for leave-one-match-out results and
+the resulting limit on which differences are measurable at all.
 
 ## How this compares to the field
 
@@ -69,8 +70,8 @@ column above, is the honest answer to "is this competitive."
 ### Measuring against T-DEED directly
 
 Published tables are scored under conditions we don't control, so we ran the challenge winner ourselves. T-DEED's
-code and checkpoints are public (GPL-3.0, github.com/arturxe2/T-DEED). We ran it on our two held-out matches and
-scored its output with our own `bas_eval.py` — same evaluator, same ground truth, same matches as every number above.
+code and checkpoints are public (GPL-3.0, github.com/arturxe2/T-DEED). We ran it on our held-out matches and scored
+its output with our own `bas_eval.py` — same evaluator, same ground truth, same matches as every number above.
 
 Three corrections were needed before the comparison meant anything:
 
@@ -78,22 +79,21 @@ Three corrections were needed before the comparison meant anything:
    winner's own published number. Its split file (`train_challenge.json`) shows why: it trains on train+val+test
    combined, including both of our held-out matches. Discarded as memorisation. `SoccerNetBall_test`, trained only
    on the 4 official training games, is the correct one. (The official BAS task is exactly the 7 games we already
-   use — 4 train, 1 validation, 2 test — and T-DEED's splits are identical to ours, including the same validation
-   match.)
-2. **Thresholding.** T-DEED's inference script discards detections below 0.2 confidence before writing output,
-   while our models are scored from a dense score matrix. Average Precision rewards the low-confidence tail, so
-   this handicapped T-DEED. We re-ran it capturing dense per-frame scores, no threshold and no NMS.
-3. **Grid resolution.** T-DEED emits scores at 12.5 fps; our grid is 2 fps. Downsampling by linear interpolation
-   destroyed its sharp peaks (Reading fell 0.68 -> 0.56). Max-pooling into 500 ms cells fixed that. We then rebuilt
-   the ground truth at 12.5 fps and evaluated both models natively, removing the question entirely — and found the
+   use — 4 train, 1 validation, 2 test — and T-DEED's splits are identical to ours, same validation match included.)
+2. **Thresholding.** T-DEED's inference script discards detections below 0.2 confidence, while our models are
+   scored from a dense score matrix. Average Precision rewards the low-confidence tail, so this handicapped T-DEED.
+   We re-ran capturing dense per-frame scores, no threshold and no NMS.
+3. **Grid resolution.** T-DEED emits at 12.5 fps; our grid was 2 fps. Downsampling by linear interpolation destroyed
+   its sharp peaks (Reading fell 0.68 -> 0.56); max-pooling into 500 ms cells fixed that. We then rebuilt the ground
+   truth at 12.5 fps (`features_125/`) and evaluated both models natively, removing the question — and found the
    2 fps grid had been slightly *flattering* T-DEED (0.704 -> 0.698), not handicapping it.
 
 ### T-DEED's representation with our head
 
 T-DEED's final classifier reads a 368-d temporal representation. We captured that tensor with a forward hook, giving
-one feature vector per frame, and trained our existing multi-scale head on it in place of the ResNet-152 + PCA-512
-features — same architecture, same hyperparameters, same 4 training games, no SoccerNet-v2 pre-training. mAP@1 on the
-native 12.5 fps grid, 5 seeds:
+one feature vector per frame, and trained our existing multi-scale head on it in place of ResNet-152 + PCA-512 —
+same architecture, same hyperparameters, same 4 training games, no SoccerNet-v2 pre-training. mAP@1 on the native
+12.5 fps grid, 5 seeds:
 
 | | Stoke | Reading | trainable params |
 |---|---|---|---|
@@ -108,17 +108,72 @@ differ. The feature space, not the architecture, accounts for the jump.
 Two things this does **not** mean:
 
 - **It is not evidence our architecture rivals the winner's.** We tap the layer immediately before T-DEED's own
-  classifier, which is by construction close to linearly separable into these 12 classes. Recovering 96-98% of its
-  score with a small head on top is the expected outcome, not a surprise — our head is largely re-learning T-DEED's
-  classifier. The representation is doing nearly all the work.
-- **It buys no inference speed.** The backbone still has to run, so cost is identical to running T-DEED outright
-  (about an hour per full match on a T4, against v8's ~4 minutes). What it buys is *adaptability*: the head
-  retrains end-to-end in 45 seconds on frozen features, so new footage conditions or a changed class set cost
-  minutes rather than a full retrain.
+  classifier, which is by construction close to linearly separable into these 12 classes. Recovering most of its
+  score with a small head on top is the expected outcome — the representation is doing nearly all the work.
+- **It buys no inference speed.** The backbone still runs, so cost equals running T-DEED outright (about an hour
+  per full match on a T4, against v8's ~4 minutes). What it buys is *adaptability*: the head retrains end to end in
+  under two minutes on frozen features, so new conditions or a changed class set cost minutes, not a full retrain.
 
-Caveat on how the features were produced: the `SoccerNetBall_test` checkpoint was itself trained on our 4 training
-games, so training features come from clips its encoder has already seen while held-out features do not. That
-mismatch should depress held-out performance rather than inflate it, but it is a real asymmetry.
+Caveat on the features: `SoccerNetBall_test` was itself trained on our 4 training games, so training features come
+from clips its encoder has already seen while held-out features do not.
+
+### What this dataset can resolve
+
+Leave-one-match-out cross-validation, 5 seeds per fold. In the T-DEED feature space only 3 of 7 folds are honest —
+holding out a game the backbone trained on returns ~0.98, because the frozen encoder has memorised it, so those
+folds measure leakage rather than generalisation. The old 512-d space has no such problem (ImageNet ResNet and
+SoccerNet's published PCA never saw these matches), so all 7 folds there are valid.
+
+| | mean | between-match sd | mean seed sd | folds |
+|---|---|---|---|---|
+| T-DEED features | 0.692 | 0.035 | 0.011 | 3 (honest) |
+| old 512-d features | 0.234 | 0.043 | 0.011 | 7 |
+
+Between-match variation is 3–4x seed variation in both spaces, and nearly the same in absolute terms (0.035 vs
+0.043) despite the means differing threefold — so it behaves additively, not proportionally. The 95% intervals for
+those standard deviations ([0.018, 0.219] from 3 folds; [0.028, 0.095] from 7) overlap almost entirely, so the data
+is consistent with one underlying match-to-match variability.
+
+**Practical consequence: differences below roughly 0.04 mAP@1 cannot be established on this dataset.** Error bars
+computed across seeds are the wrong denominator; match-to-match spread is. Applying that honestly:
+
+- v9 vs v8 (gap 0.36–0.46): about 10x the floor. Solid.
+- our head vs T-DEED (gap 0.025): below the floor. **Not establishable in either direction.**
+- phone-robustness augmentation vs baseline (gap ~0.010): noise. See below.
+
+### Robustness to degraded video
+
+We degraded a 10-minute slice of Stoke one condition at a time, re-extracted features and scored against the same
+ground truth (`results_v9/degradation_sweep.json`):
+
+| condition | mAP@1 | vs clean | cosine similarity of features to clean |
+|---|---|---|---|
+| clean | 0.647 | — | 1.000 |
+| dark | 0.649 | +0.4% | 0.990 |
+| shake | 0.670 | +3.6% | 0.952 |
+| zoom | 0.638 | −1.4% | 0.811 |
+| lowres | 0.571 | −11.7% | 0.880 |
+| blur | 0.535 | −17.3% | 0.751 |
+| **compress (CRF 40)** | **0.371** | **−42.7%** | **0.629** |
+
+Compression dominates, by roughly three times the next worst condition. Mild camera shake, lighting shift and
+framing cost nothing measurable — though the simulations of shake (±2.5% translation) and brightness were gentle,
+so that finding holds only for mild versions.
+
+`zoom` is the informative exception: its features sit *further* from clean than `lowres` yet it loses almost
+nothing. Feature displacement alone doesn't predict damage. Zoom relocates the representation while preserving
+discriminative content; compression destroys ball-scale detail that nothing downstream can reconstruct. That rules
+out the obvious objection that this is just distribution shift a head could be trained around — the head already
+tolerates a large shift when the information survives.
+
+Consistent with that, re-training the head on degraded copies of all 4 training games produced **no measured
+improvement on compression** (+0.010, 0.9 sigma) and small gains on blur and lowres that sit below the 0.04
+resolution floor. With a frozen backbone the information is gone before the head sees it. Fixing this properly
+needs backbone fine-tuning on degraded video, which we did not attempt.
+
+**Product consequence, which costs nothing:** accuracy depends heavily on upload quality, so the app should ask for
+original files rather than re-shared copies. Video forwarded through messaging apps or re-uploaded to social
+platforms is recompressed hard — the single largest measured source of degradation.
 
 ## Limitations
 - Validated on 224p broadcast footage. Phone, sideline and other non-broadcast video is untested. Non-16:9 video
