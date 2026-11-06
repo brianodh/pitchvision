@@ -11,7 +11,7 @@ export function BackendStatus() {
   return (
     <Link
       href="/analyze"
-      className="inline-flex items-center gap-2 rounded-full border border-line px-3 py-1 text-[12px] text-ink-2 hover:border-line-strong"
+      className="inline-flex items-center gap-2 rounded-full border border-line p-2 text-[12px] text-ink-2 hover:border-line-strong sm:px-3 sm:py-1"
       title={health.message ?? health.health?.device}
     >
       <span className="relative flex h-2 w-2">
@@ -19,7 +19,7 @@ export function BackendStatus() {
         <span className="relative h-2 w-2 rounded-full" style={{ background: color }} />
       </span>
       <span className="hidden sm:inline">{HEALTH_LABEL[s]}</span>
-      <span className="sm:hidden">{s === "ready" ? "Live" : "Offline"}</span>
+      <span className="sr-only sm:hidden">{HEALTH_LABEL[s]}</span>
     </Link>
   );
 }

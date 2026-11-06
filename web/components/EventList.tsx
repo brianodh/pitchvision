@@ -14,6 +14,7 @@ const OVERSCAN = 6;
 /** Virtualised list: a full match has ~2,000 detections and every row carries a thumbnail. */
 export function EventList({
   events,
+  totalCount,
   store,
   threshold,
   reliabilityOn,
@@ -23,6 +24,7 @@ export function EventList({
   emptyMessage,
 }: {
   events: MatchEvent[];
+  totalCount: number;
   store: TimeStore;
   threshold: number;
   reliabilityOn: boolean;
@@ -70,7 +72,9 @@ export function EventList({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
         <span className="font-mono text-[11px] tabular text-ink-3">
-          {events.length.toLocaleString()} {events.length === 1 ? "event" : "events"}
+          {events.length === totalCount
+            ? `${totalCount.toLocaleString()} ${totalCount === 1 ? "event" : "events"}`
+            : `${events.length.toLocaleString()} of ${totalCount.toLocaleString()} events`}
         </span>
         <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-ink-3">
           <input

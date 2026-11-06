@@ -16,8 +16,10 @@ export interface PlayerHandle {
  * If the bundle's video is missing (a broken symlink, a moved drive), the operator can point the player at
  * a local copy. That file is played straight from disk via an object URL — it is never uploaded anywhere.
  */
-export const VideoPlayer = forwardRef<PlayerHandle, { src: string | null; store: TimeStore; duration: number }>(
-  function VideoPlayer({ src, store, duration }, ref) {
+export const VideoPlayer = forwardRef<
+  PlayerHandle,
+  { src: string | null; store: TimeStore; duration: number; missing?: boolean }
+>(function VideoPlayer({ src, store, duration, missing = false }, ref) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [localSrc, setLocalSrc] = useState<string | null>(null);
     const [failed, setFailed] = useState(false);
@@ -87,12 +89,18 @@ export const VideoPlayer = forwardRef<PlayerHandle, { src: string | null; store:
           <div className="absolute inset-0 hatch opacity-60" aria-hidden />
           <div className="relative max-w-sm">
             <p className="font-display text-xl font-semibold text-ink-1">
-              {failed ? "This video can't be played" : "No video attached to this match"}
+              {failed
+                ? "This video can't be played"
+                : missing
+                  ? "The video file isn't where this match expects it"
+                  : "No video attached to this match"}
             </p>
             <p className="mt-1 text-sm text-ink-2">
               {failed
                 ? "The file is missing or in a format this browser can't decode (MP4/H.264 is safest)."
-                : "The timeline, list and thumbnails still work."}{" "}
+                : missing
+                  ? "It may be on a drive that isn't connected, or the original was moved. The timeline, list and thumbnails still work."
+                  : "The timeline, list and thumbnails still work."}{" "}
               Point the player at your local copy — it plays straight from disk and isn&apos;t uploaded.
             </p>
             <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-md bg-accent px-3.5 py-2 text-sm font-semibold text-accent-ink hover:brightness-110">
@@ -130,5 +138,4 @@ export const VideoPlayer = forwardRef<PlayerHandle, { src: string | null; store:
         />
       </div>
     );
-  },
-);
+});

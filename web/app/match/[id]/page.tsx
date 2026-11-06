@@ -17,9 +17,9 @@ export default async function MatchPage({ params }: Props) {
   const { id } = await params;
   const bundle = await getMatch(id);
   if (!bundle) notFound();
-  const videoUrl =
-    bundle.video && (await videoAvailable(bundle))
-      ? `/api/matches/${encodeURIComponent(bundle.id)}/files/${encodeURIComponent(bundle.video)}`
-      : null;
-  return <MatchWorkspace bundle={bundle} videoUrl={videoUrl} />;
+  const available = bundle.video ? await videoAvailable(bundle) : false;
+  const videoUrl = available ? `/api/matches/${encodeURIComponent(bundle.id)}/files/${encodeURIComponent(bundle.video!)}` : null;
+  // A bundle that names a video which isn't on disk (moved drive, dangling symlink) is a different message from
+  // one built without a video at all.
+  return <MatchWorkspace bundle={bundle} videoUrl={videoUrl} videoMissing={Boolean(bundle.video) && !available} />;
 }

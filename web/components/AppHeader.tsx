@@ -16,12 +16,12 @@ export function Logo() {
 export function AppHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur supports-[backdrop-filter]:bg-bg/75">
-      <div className="mx-auto flex h-14 max-w-[1680px] items-center gap-6 px-4 lg:px-6">
+      <div className="mx-auto flex h-14 max-w-[1680px] items-center gap-3 px-4 sm:gap-6 lg:px-6">
         <Link href="/" className="flex items-center gap-2.5">
           <Logo />
           <span className="font-display text-[21px] font-bold tracking-wide text-ink-1 uppercase">PitchVision</span>
         </Link>
-        <nav className="flex items-center gap-1 text-[13px]">
+        <nav className="flex items-center text-[13px] sm:gap-1">
           <Link href="/" className="rounded-md px-2.5 py-1.5 text-ink-2 hover:bg-s2 hover:text-ink-1">
             Library
           </Link>

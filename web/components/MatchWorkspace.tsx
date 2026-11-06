@@ -25,7 +25,15 @@ function readInitialClasses(): Set<EventClass> {
   return new Set(raw.split(",").map(classFromSlug).filter((c): c is EventClass => c !== null));
 }
 
-export function MatchWorkspace({ bundle, videoUrl }: { bundle: MatchBundle; videoUrl: string | null }) {
+export function MatchWorkspace({
+  bundle,
+  videoUrl,
+  videoMissing = false,
+}: {
+  bundle: MatchBundle;
+  videoUrl: string | null;
+  videoMissing?: boolean;
+}) {
   const store = useMemo(() => createTimeStore(), []);
   const player = useRef<PlayerHandle>(null);
   const [selected, setSelected] = useState<Set<EventClass>>(() => new Set());
@@ -122,8 +130,6 @@ export function MatchWorkspace({ bundle, videoUrl }: { bundle: MatchBundle; vide
     return () => window.removeEventListener("keydown", onKey);
   }, [filtered, leadIn, pick, store]);
 
-  const filterLabel = selected.size ? `${filtered.length.toLocaleString()} of ${bundle.events.length.toLocaleString()} shown` : null;
-
   return (
     <main className="mx-auto w-full max-w-[1680px] px-4 pt-4 pb-16 lg:px-6">
       {/* match header */}
@@ -148,7 +154,7 @@ export function MatchWorkspace({ bundle, videoUrl }: { bundle: MatchBundle; vide
       {/* player + list */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
         <div className="min-w-0">
-          <VideoPlayer ref={player} src={videoUrl} store={store} duration={bundle.duration_s} />
+          <VideoPlayer ref={player} src={videoUrl} store={store} duration={bundle.duration_s} missing={videoMissing} />
         </div>
         <aside className="panel relative flex h-[420px] flex-col overflow-hidden sm:h-[520px] lg:h-auto lg:min-h-[420px]">
           <div className="flex flex-col lg:absolute lg:inset-0">
@@ -178,9 +184,9 @@ export function MatchWorkspace({ bundle, videoUrl }: { bundle: MatchBundle; vide
                 </select>
               </label>
             </div>
-            {filterLabel && <p className="px-3 pt-1 text-[11.5px] text-ink-3">{filterLabel}</p>}
             <EventList
               events={filtered}
+              totalCount={bundle.events.length}
               store={store}
               threshold={bundle.threshold}
               reliabilityOn={reliabilityOn}

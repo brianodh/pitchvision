@@ -8,7 +8,7 @@ import type { TimeStore } from "@/lib/time-store";
 import type { EventClass, MatchBundle, MatchEvent } from "@/lib/types";
 import { TierIcon } from "./ReliabilityMark";
 
-const RULER_H = 22;
+const RULER_H = 30; // top 14 px: playhead time pill; below: tick labels
 const PASS_H = 9;
 const TEMPO_H = 12;
 const GAP = 7;
@@ -512,8 +512,8 @@ const Plot = memo(function Plot({
       {/* ruler + grid */}
       {ticks.map((t) => (
         <g key={t}>
-          <line x1={x(t)} x2={x(t)} y1={RULER_H - 5} y2={MAIN_H} stroke="var(--line)" strokeWidth={1} />
-          <text x={x(t) + 4} y={RULER_H - 9} fill="var(--ink-3)" fontSize={10} fontFamily="var(--font-mono)">
+          <line x1={x(t)} x2={x(t)} y1={RULER_H - 13} y2={MAIN_H} stroke="var(--line)" strokeWidth={1} />
+          <text x={x(t) + 4} y={RULER_H - 5} fill="var(--ink-3)" fontSize={10} fontFamily="var(--font-mono)">
             {formatClock(t)}
           </text>
         </g>
