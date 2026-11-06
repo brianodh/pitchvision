@@ -3,7 +3,12 @@
 reusable [T, 368] feature array per match, for a downstream model of our own.
 
 Run from inside a checkout of https://github.com/arturxe2/T-DEED (GPL-3.0); this file imports
-that project's modules and is therefore GPL-3.0 too.
+that project's modules and is therefore GPL-3.0 too. It is kept in model/third_party/tdeed_glue/ with
+the licence text (COPYING) so that it stays separate from PitchVision's own code. PitchVision only ever
+runs it as a separate process inside the T-DEED checkout and reads the .npy it writes.
+
+Progress: prints `PV_PROGRESS <done>/<total>` (batches) on stdout, flushed, so a caller can report real
+backbone progress instead of guessing from elapsed time.
 
     python extract_features_v8.py --model SoccerNetBall_test \
         --video_path match.mp4 --out_path feats_match.npy
@@ -81,7 +86,9 @@ def main(args):
     support = np.zeros(n_rows, np.int32)
 
     # Clips overlap; accumulate and average, mirroring util.eval.inference().
-    for frames, starts in loader:
+    n_batches = len(loader)
+    print(f'PV_PROGRESS 0/{n_batches}', flush=True)
+    for b_idx, (frames, starts) in enumerate(loader, 1):
         _, _ = model.predict(frames)
         batch_feat = captured['feat']
         if feat_dim is None:
@@ -98,6 +105,7 @@ def main(args):
             feat = feat[:end - start, :]
             features_sum[start:end, :] += feat
             support[start:end] += 1
+        print(f'PV_PROGRESS {b_idx}/{n_batches}', flush=True)
 
     features = features_sum / np.maximum(support, 1)[:, None]
     np.save(args.out_path, features)

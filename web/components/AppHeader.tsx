@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackendStatus } from "./BackendStatus";
 
 export function Logo() {
   return (
@@ -24,10 +25,16 @@ export function AppHeader() {
           <Link href="/" className="rounded-md px-2.5 py-1.5 text-ink-2 hover:bg-s2 hover:text-ink-1">
             Library
           </Link>
+          <Link href="/analyze" className="rounded-md px-2.5 py-1.5 text-ink-2 hover:bg-s2 hover:text-ink-1">
+            Analyse
+          </Link>
           <Link href="/method" className="hidden rounded-md px-2.5 py-1.5 text-ink-2 hover:bg-s2 hover:text-ink-1 sm:inline">
             Method &amp; limits
           </Link>
         </nav>
+        <div className="ml-auto">
+          <BackendStatus />
+        </div>
       </div>
     </header>
   );

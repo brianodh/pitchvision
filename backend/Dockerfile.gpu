@@ -1,0 +1,38 @@
+# PitchVision inference server for a real GPU host (Hugging Face Spaces, Modal, RunPod, a workstation).
+# Same package and API as the Colab notebook; the web app only needs the new URL and token.
+#
+#   docker build -f backend/Dockerfile.gpu -t pitchvision-server .          (from the repo root)
+#   docker run --gpus all -p 8000:8000 -e PV_TOKEN=... \
+#     -v /path/to/checkpoint_best.pt:/opt/T-DEED/checkpoints/SoccerNetBall/SoccerNetBall_test/checkpoint_best.pt:ro \
+#     pitchvision-server
+#
+# T-DEED (GPL-3.0) is cloned at a pinned commit during the build, not copied from this repo. Its
+# SoccerNetBall_test checkpoint is mounted at run time rather than baked in: it is large, and like the v9 head
+# it was trained on SoccerNet data (non-commercial research only).
+# Not yet built or run on a GPU host — written against the same layout the Colab notebook uses.
+FROM pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg git && rm -rf /var/lib/apt/lists/*
+
+ARG TDEED_COMMIT=d953b4de8a2ad941c565e1683c5b07255cbe644e
+RUN git clone https://github.com/arturxe2/T-DEED /opt/T-DEED \
+ && git -C /opt/T-DEED checkout --quiet ${TDEED_COMMIT} \
+ && cp /opt/T-DEED/config/SoccerNetBall/SoccerNetBall_challenge1.json /opt/T-DEED/config/SoccerNetBall/SoccerNetBall_test.json \
+ && mkdir -p /opt/T-DEED/checkpoints/SoccerNetBall/SoccerNetBall_test
+
+COPY backend/requirements-server.txt /tmp/requirements-server.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-server.txt
+
+COPY model/pitchvision /app/model/pitchvision
+COPY model/third_party /app/model/third_party
+COPY model/results/checkpoints/v9_tdeed_head_seed0.pt /app/model/results/checkpoints/v9_tdeed_head_seed0.pt
+COPY backend/pv_server /app/backend/pv_server
+
+ENV TDEED_ROOT=/opt/T-DEED \
+    PV_MODEL_ROOT=/app/model \
+    PV_WORKDIR=/tmp/pitchvision_jobs \
+    PORT=8000
+WORKDIR /app/backend
+EXPOSE 8000
+# Hugging Face Spaces expects port 7860: set PORT=7860 in the Space's settings.
+CMD ["sh", "-c", "uvicorn pv_server.app:create_app --factory --host 0.0.0.0 --port ${PORT}"]

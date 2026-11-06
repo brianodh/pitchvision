@@ -4,5 +4,6 @@
 !/data/README.md
 .env*.local
 .env
+!.env.example
 next-env.d.ts
 *.tsbuildinfo

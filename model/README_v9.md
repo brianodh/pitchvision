@@ -73,7 +73,7 @@ match takes about an hour.
 |---|---|
 | `pitchvision/v9/network.py` | The head: one convolution pooled at five temporal widths, then a classifier. |
 | `pitchvision/v9/infer.py` | `run_inference_v9`, matching the v3/v8 contract. |
-| `pitchvision/v9/extract_tdeed_features.py` | Copied into the T-DEED checkout and run there to capture features. |
+| `third_party/tdeed_glue/extract_tdeed_features.py` | GPL-3.0 (imports T-DEED). Copied into the T-DEED checkout and run there as a separate process to capture features; prints a batch counter for progress. Kept apart from our code with its licence text. |
 | `scripts/spot_video_v9.py` | Command-line entry point. |
 | `results/checkpoints/v9_tdeed_head_seed0.pt` | Trained head, 886 KB. Committed with `git add -f`, since `.gitignore` excludes `*.pt`. |
 
