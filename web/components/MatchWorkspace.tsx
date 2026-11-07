@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { classFromSlug, classSlug } from "@/lib/classes";
 import { eventMix, formatDuration, keyPassages, tempo, type Passage } from "@/lib/derive";
+import { parseClassesParam, serializeClasses } from "@/lib/filter-url";
 import { RELIABILITY_SOURCE, reliabilityApplies } from "@/lib/reliability";
 import { createTimeStore } from "@/lib/time-store";
 import type { EventClass, MatchBundle, MatchEvent } from "@/lib/types";
@@ -18,48 +19,60 @@ import { VideoPlayer, type PlayerHandle } from "./VideoPlayer";
 const LEAD_OPTIONS = [0, 2, 5];
 const LEAD_KEY = "pv.leadIn";
 
-function readInitialClasses(): Set<EventClass> {
-  if (typeof window === "undefined") return new Set();
-  const raw = new URLSearchParams(window.location.search).get("classes");
-  if (!raw) return new Set();
-  return new Set(raw.split(",").map(classFromSlug).filter((c): c is EventClass => c !== null));
-}
-
 export function MatchWorkspace({
   bundle,
   videoUrl,
   videoMissing = false,
+  initialClasses = [],
+  initialTime = null,
 }: {
   bundle: MatchBundle;
   videoUrl: string | null;
   videoMissing?: boolean;
+  /** Parsed from `?classes=` on the server, so the first render is already filtered. */
+  initialClasses?: EventClass[];
+  initialTime?: number | null;
 }) {
   const store = useMemo(() => createTimeStore(), []);
   const player = useRef<PlayerHandle>(null);
-  const [selected, setSelected] = useState<Set<EventClass>>(() => new Set());
+  const [selected, setSelected] = useState<Set<EventClass>>(() => new Set(initialClasses));
+  const searchParams = useSearchParams();
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const [leadIn, setLeadIn] = useState(2);
   const [focus, setFocus] = useState<FocusRequest | null>(null);
   const reliabilityOn = reliabilityApplies(bundle.engine);
 
   // URL <-> filter, so "every cross" is a link you can send: /match/<id>?classes=cross
+  // State starts from the server-parsed query (above). After that:
+  //  - query -> state: a client-side navigation to a different ?classes= (Link, back/forward) re-syncs;
+  //  - state -> query: chip clicks rewrite the URL in place (replaceState, no history spam).
+  // Both directions compare serialised forms, so each is a no-op when they already agree.
+  const queryClasses = searchParams.get("classes") ?? "";
   useEffect(() => {
-    setSelected(readInitialClasses());
-    const t = Number(new URLSearchParams(window.location.search).get("t"));
-    if (Number.isFinite(t) && t > 0) setTimeout(() => player.current?.seek(t), 50);
+    const fromQuery = parseClassesParam(queryClasses);
+    if (serializeClasses(fromQuery) !== serializeClasses(selected)) setSelected(new Set(fromQuery));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to the query changing
+  }, [queryClasses]);
+  useEffect(() => {
+    const want = serializeClasses(selected);
+    const url = new URL(window.location.href);
+    if ((url.searchParams.get("classes") ?? "") === want) return;
+    if (want) url.searchParams.set("classes", want);
+    else url.searchParams.delete("classes");
+    // Keep commas literal so a pasted link reads ?classes=cross,shot rather than ?classes=cross%2Cshot.
+    window.history.replaceState(window.history.state, "", url.href.replace(/%2C/gi, ","));
+  }, [selected]);
+
+  useEffect(() => {
+    if (initialTime) setTimeout(() => player.current?.seek(initialTime), 50);
     try {
       const raw = window.localStorage.getItem(LEAD_KEY);
       if (raw !== null && LEAD_OPTIONS.includes(Number(raw))) setLeadIn(Number(raw));
     } catch {
       /* storage unavailable: keep the default */
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
   }, []);
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    if (selected.size) url.searchParams.set("classes", [...selected].map(classSlug).join(","));
-    else url.searchParams.delete("classes");
-    window.history.replaceState(null, "", url);
-  }, [selected]);
 
   const filtered = useMemo(
     () => (selected.size ? bundle.events.filter((e) => selected.has(e.class)) : bundle.events),
