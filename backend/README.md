@@ -170,10 +170,15 @@ python3 -m venv venv
 
 Activate it:
 
-### Linux/macOS
+### Linux
 
 ```bash
 source venv/bin/activate
+```
+### MacOS
+
+```bash 
+source .venv/bin/activate
 ```
 
 ### Windows
