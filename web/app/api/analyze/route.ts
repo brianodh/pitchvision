@@ -39,6 +39,10 @@ export async function POST(req: Request) {
     return fail(413, "too_large", `This file is ${(size / 1048576).toFixed(0)} MB; the backend accepts up to ${health.health.max_upload_mb.toFixed(0)} MB.`);
   }
   const clientDuration = Number(req.headers.get("x-duration"));
+  const minS = health.health.min_seconds ?? 0;
+  if (Number.isFinite(clientDuration) && clientDuration > 0 && clientDuration < minS) {
+    return fail(422, "too_short", `This video is ${clientDuration.toFixed(0)} s; the model needs at least ${minS.toFixed(0)} s (it can't score the first and last ~9.5 s).`);
+  }
   if (Number.isFinite(clientDuration) && clientDuration > health.health.max_seconds + 0.5) {
     return fail(413, "too_long", `This video is ${(clientDuration / 60).toFixed(1)} min; the live limit is ${(health.health.max_seconds / 60).toFixed(0)} min.`);
   }

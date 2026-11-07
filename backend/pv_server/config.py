@@ -34,6 +34,11 @@ class Settings:
     # measured T4 figure (120 s clip ~ 75 s; full match ~ 1 h).
     rtf: float = field(default_factory=lambda: float(_env("PV_RTF", "0.62")))
     keep_jobs: int = field(default_factory=lambda: int(_env("PV_KEEP_JOBS", "20")))
+    # The model has no full scoring window in the first and last ~9.5 s, so shorter clips cannot yield events.
+    min_seconds: float = field(default_factory=lambda: float(_env("PV_MIN_SECONDS", "20")))
+    # T-DEED's code hardcodes CUDA, so without a GPU it crashes rather than running slowly. Set to 1 only to
+    # test against a T-DEED checkout patched for CPU.
+    allow_cpu: bool = field(default_factory=lambda: _env("PV_ALLOW_CPU", "0") == "1")
 
     def resolved_ckpt(self) -> str:
         if self.ckpt:

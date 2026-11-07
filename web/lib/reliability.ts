@@ -93,6 +93,7 @@ export function reliabilitySentence(cls: EventClass): string {
   return `Detected ${r.detected} against ${r.actual} annotated — about ${extra}% more than really happened, so expect some that aren't real.`;
 }
 
-export function reliabilityApplies(engine: string): boolean {
-  return engine === RELIABILITY_ENGINE;
+/** The per-class ratios were measured for one engine at one threshold; they say nothing about other settings. */
+export function reliabilityApplies(engine: string, threshold: number): boolean {
+  return engine === RELIABILITY_ENGINE && Math.abs(threshold - RELIABILITY_SOURCE.threshold) < 1e-9;
 }

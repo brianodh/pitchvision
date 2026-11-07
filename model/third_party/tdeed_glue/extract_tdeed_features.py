@@ -8,7 +8,13 @@ the licence text (COPYING) so that it stays separate from PitchVision's own code
 runs it as a separate process inside the T-DEED checkout and reads the .npy it writes.
 
 Progress: prints `PV_PROGRESS <done>/<total>` (batches) on stdout, flushed, so a caller can report real
-backbone progress instead of guessing from elapsed time.
+backbone progress instead of guessing from elapsed time. ActionSpotInferenceDataset is an IterableDataset
+with no len(), so the total is computed from its own clip arithmetic (see expected_batches).
+
+DataLoader workers: the dataset does not shard itself across workers, so with N workers every worker
+yields every clip and the backbone runs N times per clip (measured: 4 workers -> 48 clips for 12 unique).
+The averaged features are identical either way, so this script uses ONE worker by default — decoding still
+overlaps with the forward pass, without the duplicate compute. Override with PV_TDEED_WORKERS.
 
     python extract_features_v8.py --model SoccerNetBall_test \
         --video_path match.mp4 --out_path feats_match.npy
@@ -22,7 +28,7 @@ from torch.utils.data import DataLoader
 
 from util.io import load_json
 from model.model import TDEEDModel
-from dataset.frame import ActionSpotInferenceDataset
+from dataset.frame import DEFAULT_PAD_LEN, ActionSpotInferenceDataset
 from util.dataset import load_classes
 
 STRIDE_SNB = 2          # T-DEED's own stride for the soccernetball dataset
@@ -36,6 +42,19 @@ def get_args():
     p.add_argument('--frame_width', type=int, default=796)
     p.add_argument('--frame_height', type=int, default=448)
     return p.parse_args()
+
+
+def expected_batches(video_len, clip_len, overlap_len, stride, batch_size, pad_len=DEFAULT_PAD_LEN):
+    """Batches ActionSpotInferenceDataset will yield for one pass (it has no len()).
+
+    It buffers pad_len zero frames, then every stride-th real frame, yields a clip each time the buffer
+    holds clip_len frames, and then drops (clip_len - overlap_len). video_len comes from
+    CAP_PROP_FRAME_COUNT, which can be an estimate, so treat the result as a target, not a guarantee.
+    """
+    frames = pad_len + -(-video_len // stride)
+    step = clip_len - overlap_len
+    clips = 0 if frames < clip_len else (frames - clip_len) // step + 1
+    return -(-clips // batch_size)
 
 
 def update_args(args, config):
@@ -79,14 +98,16 @@ def main(args):
         stride=stride, dataset=args.dataset, size=(args.frame_width, args.frame_height))
     assert ds._video_len > 0, f'cv2 reported 0 frames for {args.video_path} -- missing or unreadable'
     loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False,
-                        num_workers=args.num_workers, pin_memory=True, drop_last=False)
+                        num_workers=int(os.environ.get('PV_TDEED_WORKERS', '1')),
+                        pin_memory=torch.cuda.is_available(), drop_last=False)
 
     n_rows = ds._video_len // stride
     feat_dim, features_sum = None, None
     support = np.zeros(n_rows, np.int32)
 
     # Clips overlap; accumulate and average, mirroring util.eval.inference().
-    n_batches = len(loader)
+    n_batches = max(1, expected_batches(ds._video_len, args.clip_len, args.clip_len // 4 * 3, stride,
+                                        args.batch_size))
     print(f'PV_PROGRESS 0/{n_batches}', flush=True)
     for b_idx, (frames, starts) in enumerate(loader, 1):
         _, _ = model.predict(frames)
@@ -105,8 +126,14 @@ def main(args):
             feat = feat[:end - start, :]
             features_sum[start:end, :] += feat
             support[start:end] += 1
+        n_batches = max(n_batches, b_idx)   # the frame count was an estimate; never report >100%
         print(f'PV_PROGRESS {b_idx}/{n_batches}', flush=True)
 
+    if features_sum is None:
+        need = (args.clip_len - DEFAULT_PAD_LEN) * stride
+        raise SystemExit(f'video too short for T-DEED: {ds._video_len} frames, needs at least {need} '
+                         f'(~{need / 25:.0f} s at 25 fps) to fill one {args.clip_len}-frame clip')
+    print(f'PV_PROGRESS {n_batches}/{n_batches}', flush=True)   # land on 100% even if the estimate was high
     features = features_sum / np.maximum(support, 1)[:, None]
     np.save(args.out_path, features)
     print('saved', args.out_path, features.shape)

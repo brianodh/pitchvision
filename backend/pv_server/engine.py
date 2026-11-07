@@ -74,9 +74,14 @@ class V9Engine:
             out.append({"message": "T-DEED SoccerNetBall_test checkpoint missing under TDEED_ROOT",
                         "blocking": True})
         if "cuda" not in self.device():
-            out.append({"message": "No CUDA GPU: v9 will run many times slower than the ~0.6x real-time "
-                                   "estimate, and the ETA will be wrong until progress is measured.",
-                        "blocking": False})
+            if self.s.allow_cpu:
+                out.append({"message": "No CUDA GPU (PV_ALLOW_CPU=1): running on CPU — far slower than the "
+                                       "~0.6x real-time estimate, and only with a CPU-patched T-DEED.",
+                            "blocking": False})
+            else:
+                out.append({"message": "No CUDA GPU. T-DEED's code requires CUDA (it calls .cuda() directly), "
+                                       "so v9 cannot run here. In Colab: Runtime → Change runtime type → T4 GPU.",
+                            "blocking": True})
         return out
 
     def run(self, video: str, work_dir: str, report: Report, should_stop: ShouldStop) -> EngineResult:

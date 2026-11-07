@@ -76,6 +76,7 @@ function headline(j: JobView): string {
 }
 
 const ERROR_HELP: Record<string, string> = {
+  too_short: "Use a longer clip: the first and last ~9.5 s of any clip can't be scored.",
   too_long: "Cut a shorter clip (the upload page shows an ffmpeg command), or pre-analyse the full match.",
   too_large: "Send a shorter clip; the tunnel caps uploads at 100 MB.",
   job_not_found: "The Colab runtime probably restarted, which clears its job list. Start the server cell again and re-upload.",

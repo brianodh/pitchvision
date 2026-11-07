@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { eventMix, formatClock, keyPassages, lastIndexAtOrBefore, tempo } from "@/lib/derive";
-import { RELIABILITY, RELIABILITY_SOURCE, tierOf } from "@/lib/reliability";
+import { RELIABILITY, RELIABILITY_SOURCE, reliabilityApplies, tierOf } from "@/lib/reliability";
 import { BundleError, parseBundle } from "@/lib/validate";
 import { EVENT_CLASSES, type EventClass, type MatchEvent } from "@/lib/types";
 
@@ -96,6 +96,12 @@ describe("reliability table", () => {
       expect(r).toBeDefined();
       expect(Math.abs(r.detected / r.actual - r.ratio)).toBeLessThan(0.006);
     }
+  });
+
+  it("applies only to the engine and threshold it was measured at", () => {
+    expect(reliabilityApplies("v9", 0.5)).toBe(true);
+    expect(reliabilityApplies("v9", 0.3)).toBe(false);
+    expect(reliabilityApplies("v8", 0.5)).toBe(false);
   });
 
   it("tiers the classes as agreed", () => {

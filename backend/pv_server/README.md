@@ -14,7 +14,7 @@ routes, so the browser never sees this URL or token.
 | `GET` | `/health` | readiness (`problems[]`, each `blocking` or not), limits, device, queue |
 
 All routes require `Authorization: Bearer $PV_TOKEN` when `PV_TOKEN` is set. Errors are
-`{"detail": {"code", "message", ...}}` with stable codes: `too_long`, `too_large`, `not_video`, `unreadable`,
+`{"detail": {"code", "message", ...}}` with stable codes: `too_long`, `too_short`, `too_large`, `not_video`, `unreadable`,
 `engine_not_ready`, `job_not_found`, `not_ready`, `unauthorized`.
 
 Stages: **Preparing video** (re-encode to 25 fps only if needed — v9's 12.5 fps grid assumes a 25 fps
@@ -33,6 +33,9 @@ source) → **Extracting features** (T-DEED backbone; progress is its real batch
 | `PV_MAX_SECONDS` | `600` | hard cap on clip length |
 | `PV_MAX_UPLOAD_MB` | `95` | Cloudflare's free plan rejects bodies over 100 MB |
 | `PV_THUMBS` | `frame` | `frame` (ffmpeg), `player` (YOLOv8 crop, unlabelled; ultralytics is AGPL-3.0), `none` |
+| `PV_MIN_SECONDS` | `20` | clips shorter than this can't yield events (the first and last ~9.5 s aren't scored) |
+| `PV_ALLOW_CPU` | `0` | T-DEED hardcodes CUDA, so no GPU is a blocking error; `1` only for testing against a CPU-patched T-DEED |
+| `PV_TDEED_WORKERS` | `1` | DataLoader workers in the T-DEED glue; >1 re-runs the backbone once per worker on every clip |
 | `PV_RTF` | `0.62` | processing ÷ video seconds, for the ETA before speed is measured (T4) |
 | `PV_THRESHOLD` | `0.5` | detection threshold (the reliability figures were measured at 0.5) |
 | `PV_WORKDIR`, `PV_KEEP_JOBS` | `/tmp/pitchvision_jobs`, `20` | job storage |

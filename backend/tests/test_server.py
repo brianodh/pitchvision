@@ -122,6 +122,23 @@ def test_rejects_too_long(tmp_path, clip):
     assert d["code"] == "too_long" and d["max_seconds"] == 10 and abs(d["duration_s"] - 30) < 0.5
 
 
+def test_rejects_too_short(tmp_path, clip):
+    s_client = TestClient(create_app(Settings(workdir=str(tmp_path / "jobs"), token=TOKEN, min_seconds=45,
+                                              max_seconds=60), StubEngine()))
+    r = upload(s_client, clip)
+    assert r.status_code == 422 and r.json()["detail"]["code"] == "too_short"
+
+
+def test_v9_without_cuda_is_blocking_unless_allowed(tmp_path):
+    from pv_server.engine import V9Engine
+    if "cuda" in V9Engine(Settings()).device():
+        pytest.skip("this machine has a GPU")
+    blocking = [p for p in V9Engine(Settings(allow_cpu=False)).problems() if "CUDA" in p["message"]]
+    assert blocking and blocking[0]["blocking"]
+    allowed = [p for p in V9Engine(Settings(allow_cpu=True)).problems() if "CUDA" in p["message"]]
+    assert allowed and not allowed[0]["blocking"]
+
+
 def test_rejects_too_large(tmp_path, clip):
     c = make_client(tmp_path, max_upload_mb=0.001)
     r = upload(c, clip)

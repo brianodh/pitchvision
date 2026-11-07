@@ -40,7 +40,7 @@ export function MatchWorkspace({
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const [leadIn, setLeadIn] = useState(2);
   const [focus, setFocus] = useState<FocusRequest | null>(null);
-  const reliabilityOn = reliabilityApplies(bundle.engine);
+  const reliabilityOn = reliabilityApplies(bundle.engine, bundle.threshold);
 
   // URL <-> filter, so "every cross" is a link you can send: /match/<id>?classes=cross
   // State starts from the server-parsed query (above). After that:
@@ -254,8 +254,8 @@ export function MatchWorkspace({
         <Panel className="xl:col-span-7" title="Event mix" kicker="Detected events by class">
           <EventMix rows={mix} reliabilityOn={reliabilityOn} selected={selected} onPick={(c) => setSelected(new Set([c]))} />
         </Panel>
-        <Panel className="xl:col-span-5" title="How far to trust this" kicker={reliabilityOn ? "Validated per class" : "Not validated for this engine"}>
-          <ReliabilityNote engine={bundle.engine} />
+        <Panel className="xl:col-span-5" title="How far to trust this" kicker={reliabilityOn ? "Validated per class" : "Not validated for these settings"}>
+          <ReliabilityNote engine={bundle.engine} threshold={bundle.threshold} />
         </Panel>
       </div>
 

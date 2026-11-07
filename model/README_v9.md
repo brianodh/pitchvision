@@ -89,6 +89,18 @@ checks that a cut at 12.0 s lands at 12.0 s for 30, 60 and variable-rate input (
 without the fix). The resampling itself is exact; whether the model's accuracy holds on phone footage is a
 separate, untested question (see below).
 
+## Speed: re-measure on a GPU
+
+The ~0.6x real-time figure above was measured with the feature-capture script's earlier DataLoader setup,
+which used T-DEED's configured 4 workers. T-DEED's inference dataset is an `IterableDataset` that does not
+shard itself across workers, so every worker yielded every clip and the backbone ran **4 times per clip**
+(measured: 48 clips yielded for 12 unique; averaged features identical to 2e-6). The script now uses one
+worker (`PV_TDEED_WORKERS`). On CPU that cut a 10-second clip from 65 s to 21 s, model loading included.
+The GPU figure should drop too, by an amount not yet measured — re-time a 120-second clip on a T4 and update
+`PV_RTF` (the server's ETA prior) and the numbers in this README.
+
+T-DEED's code requires CUDA (`.cuda()` is called directly); it does not fall back to CPU.
+
 ## Known limitations
 
 - Trained and evaluated only on 224p broadcast footage. Phone and sideline video are untested.

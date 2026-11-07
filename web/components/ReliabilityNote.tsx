@@ -3,14 +3,25 @@ import { CLASS_META } from "@/lib/classes";
 import { RELIABILITY_ENGINE, RELIABILITY_SOURCE, TIER_LABEL, reliabilityApplies, tierOf, type Tier } from "@/lib/reliability";
 import { TierIcon } from "./ReliabilityMark";
 
-export function ReliabilityNote({ engine }: { engine: string }) {
-  if (!reliabilityApplies(engine)) {
+export function ReliabilityNote({ engine, threshold }: { engine: string; threshold: number }) {
+  if (!reliabilityApplies(engine, threshold)) {
+    const why =
+      engine !== RELIABILITY_ENGINE ? (
+        <>
+          the <b className="text-ink-1">{RELIABILITY_ENGINE}</b> engine only; this match was analysed with{" "}
+          <b className="text-ink-1">{engine}</b>
+        </>
+      ) : (
+        <>
+          threshold <b className="text-ink-1">{RELIABILITY_SOURCE.threshold}</b> only; this match was analysed at{" "}
+          <b className="text-ink-1">{threshold}</b>, where every class&apos;s count changes
+        </>
+      );
     return (
       <div className="text-sm text-ink-2">
         <p>
-          Per-class validation was run for the <b className="text-ink-1">{RELIABILITY_ENGINE}</b> engine only. This match was
-          analysed with <b className="text-ink-1">{engine}</b>, so no class carries a reliability marker — that is absence of
-          evidence, not a clean bill of health.
+          Per-class validation was run at {why}. So no class carries a reliability marker — that is absence of evidence,
+          not a clean bill of health.
         </p>
         <Link href="/method" className="mt-3 inline-block text-[13px] text-accent hover:underline">
           Method &amp; limits →

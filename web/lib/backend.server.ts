@@ -112,6 +112,7 @@ export interface BackendHealth {
   device: string;
   problems: { message: string; blocking: boolean }[];
   max_seconds: number;
+  min_seconds?: number;
   max_upload_mb: number;
   rtf: number;
   thumbs: string;

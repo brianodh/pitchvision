@@ -9,7 +9,8 @@
 # T-DEED (GPL-3.0) is cloned at a pinned commit during the build, not copied from this repo. Its
 # SoccerNetBall_test checkpoint is mounted at run time rather than baked in: it is large, and like the v9 head
 # it was trained on SoccerNet data (non-commercial research only).
-# Not yet built or run on a GPU host — written against the same layout the Colab notebook uses.
+# Not yet built or run on a GPU host — written against the same layout the Colab notebook uses. T-DEED's code
+# calls .cuda() directly, so this image needs a CUDA GPU (`--gpus all`); it does not fall back to CPU.
 FROM pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg git && rm -rf /var/lib/apt/lists/*
@@ -22,6 +23,10 @@ RUN git clone https://github.com/arturxe2/T-DEED /opt/T-DEED \
 
 COPY backend/requirements-server.txt /tmp/requirements-server.txt
 RUN pip install --no-cache-dir -r /tmp/requirements-server.txt
+# T-DEED builds its backbone with timm.create_model('regnety_002', pretrained=True), which downloads ImageNet
+# weights from the Hugging Face Hub every time the model is constructed (they are then overwritten by the
+# checkpoint). Cache them in the image so the server doesn't need Hugging Face access at run time.
+RUN python -c "import timm; timm.create_model('regnety_002', pretrained=True)"
 
 COPY model/pitchvision /app/model/pitchvision
 COPY model/third_party /app/model/third_party

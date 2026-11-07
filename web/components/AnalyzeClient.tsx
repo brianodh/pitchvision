@@ -55,9 +55,11 @@ export function AnalyzeClient({ recent }: { recent: { id: string; filename: stri
   const rtf = h?.rtf ?? FALLBACK_RTF;
 
   const tooLong = picked?.duration != null && maxS != null && picked.duration > maxS + 0.5;
+  const minS = h?.min_seconds ?? null;
+  const tooShort = picked?.duration != null && minS != null && picked.duration < minS;
   const tooBig = picked != null && maxMb != null && picked.file.size > maxMb * 1048576;
   const ready = health.state === "ready";
-  const canSubmit = picked && ready && !tooLong && !tooBig && !upload && !measuring;
+  const canSubmit = picked && ready && !tooLong && !tooShort && !tooBig && !upload && !measuring;
 
   async function choose(file: File | undefined) {
     if (!file) return;
@@ -151,7 +153,14 @@ export function AnalyzeClient({ recent }: { recent: { id: string; filename: stri
                 {measuring ? "reading length…" : picked.duration ? formatDuration(picked.duration) : "length unknown"}
               </span>
             </div>
-            {picked.duration && !tooLong && (
+            {tooShort && minS && picked.duration && (
+              <Blocked title={`Too short: ${formatDuration(picked.duration)} (minimum ${formatDuration(minS)})`}>
+                The model scores each moment from a 19.5-second window centred on it, so it can&apos;t see the first and last
+                ~9.5 s of any clip. A clip this short would come back empty. Include at least a little either side of the
+                action you care about.
+              </Blocked>
+            )}
+            {picked.duration && !tooLong && !tooShort && (
               <p className="mt-2 text-[13px] text-ink-2">
                 Expected processing: about <b className="text-ink-1">{formatDuration(picked.duration * rtf)}</b> on the GPU,
                 plus upload time. The estimate is replaced by measured speed once feature extraction starts.

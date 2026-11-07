@@ -63,6 +63,7 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
             "device": eng.device(),
             "problems": problems,
             "max_seconds": s.max_seconds,
+            "min_seconds": s.min_seconds,
             "max_upload_mb": s.max_upload_mb,
             "rtf": s.rtf,
             "thumbs": s.thumbs,
@@ -93,6 +94,11 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
         if not duration:
             _rm(work_dir)
             raise err(415, "unreadable", "ffprobe could not read a duration from this file. Is it a complete video?")
+        if duration < s.min_seconds:
+            _rm(work_dir)
+            raise err(422, "too_short",
+                      f"This video is {duration:.0f} s. The model can't score the first and last ~9.5 s of a clip, "
+                      f"so it needs at least {s.min_seconds:.0f} s.", duration_s=duration, min_seconds=s.min_seconds)
         if duration > s.max_seconds + 0.5:
             _rm(work_dir)
             raise err(413, "too_long",
