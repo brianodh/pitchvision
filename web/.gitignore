@@ -1,0 +1,9 @@
+# Local match library and uploads. SoccerNet-derived footage, frames and timelines live here and must
+# never be committed: the SoccerNet NDA is non-commercial research only, no redistribution.
+/data/*
+!/data/README.md
+.env*.local
+.env
+!.env.example
+next-env.d.ts
+*.tsbuildinfo
