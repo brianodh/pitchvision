@@ -85,10 +85,9 @@ describe("reliability table", () => {
     const actual = Object.values(RELIABILITY).reduce((s, r) => s + r.actual, 0);
     const detected = Object.values(RELIABILITY).reduce((s, r) => s + r.detected, 0);
     expect(actual).toBe(RELIABILITY_SOURCE.annotated);
-    // Known discrepancy in the supplied table: per-class detections sum to 2,125, the stated total is 2,139.
-    // Pinned here so it is noticed (and this assertion updated) when README_playerid.md is reconciled.
-    expect(detected).toBe(2125);
-    expect(RELIABILITY_SOURCE.detected - detected).toBe(14);
+    // The per-class table covers the detections that could be located in frame (2,125 of 2,139).
+    expect(detected).toBe(RELIABILITY_SOURCE.tabulated);
+    expect(RELIABILITY_SOURCE.tabulated).toBeLessThanOrEqual(RELIABILITY_SOURCE.detected);
   });
 
   it("covers every class, with ratios consistent to two decimals", () => {

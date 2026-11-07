@@ -5,9 +5,8 @@ import type { EventClass } from "./types";
 //
 // Source: full 101-minute Stoke City vs Huddersfield Town (2019-10-01), v9 model (T-DEED features +
 // PitchVision head, 5-seed mean), threshold 0.5, detections matched against SoccerNet Labels-ball.json.
-// 2,139 detected against 1,844 annotated. To be published in model/README_playerid.md.
-// NOTE: the per-class `detected` column below sums to 2,125, 14 short of the stated 2,139 total. Both are
-// reproduced as supplied; reconcile against the README when it lands (tests/derive.test.ts pins the gap).
+// 2,139 detected against 1,844 annotated (model/README_playerid.md). The per-class table covers the 2,125
+// detections that could be located in frame; the other 14 are not broken down by class.
 //
 // The ratio is detected ÷ true COUNT. It is not accuracy: a class at 1.0× could still be half false
 // positives cancelling half misses. Label it as a count ratio everywhere.
@@ -19,6 +18,8 @@ export const RELIABILITY_SOURCE = {
   model: "v9 · T-DEED features + PitchVision head, 5-seed mean",
   threshold: 0.5,
   detected: 2139,
+  /** Detections in the per-class table (located in frame); the `detected` column below sums to this. */
+  tabulated: 2125,
   annotated: 1844,
   /** Share of detections with no true event of the same class within one second. */
   falsePositiveShare: 0.25,

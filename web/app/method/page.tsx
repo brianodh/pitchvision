@@ -34,7 +34,8 @@ export default function MethodPage() {
         <p className="mb-4 max-w-3xl text-sm text-ink-2">
           Validated on the {RELIABILITY_SOURCE.match}, {RELIABILITY_SOURCE.model}, threshold {RELIABILITY_SOURCE.threshold},
           matched against SoccerNet&apos;s hand annotations: {RELIABILITY_SOURCE.detected.toLocaleString()} detected against{" "}
-          {RELIABILITY_SOURCE.annotated.toLocaleString()} annotated. The ratio is <b className="text-ink-1">detected ÷ true count</b>.
+          {RELIABILITY_SOURCE.annotated.toLocaleString()} annotated. The table covers the{" "}
+          {RELIABILITY_SOURCE.tabulated.toLocaleString()} detections that could be located in frame. The ratio is <b className="text-ink-1">detected ÷ true count</b>.
           It is not accuracy — a class at 1.00× could still be half false alarms cancelling half misses.
         </p>
         <div className="scroll-quiet overflow-x-auto rounded-lg border border-line">
@@ -131,7 +132,8 @@ export default function MethodPage() {
         <dl className="grid max-w-4xl gap-4 sm:grid-cols-2">
           <NoShow title="Possession, team splits, pass accuracy">
             Team attribution from kit colour measured 42.0% on 1,591 matched events using the frame-centre player and 65.0% on
-            648 using the ball. At 65%, a true 55/45 split reads as roughly 51.5% ± 6% — unreadable. Thumbnails are shown
+            648 using the ball — against a 50% coin flip. At 65%, a true 55/45 split is observed as about 51.5%; correcting
+            for the error recovers 55% but with ±6% noise, so a real ten-point gap is indistinguishable from even. Thumbnails are shown
             unlabelled: you can see the kit and attribute it yourself, correctly.
           </NoShow>
           <NoShow title="Player names or per-player tallies">
