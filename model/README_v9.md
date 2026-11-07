@@ -73,9 +73,33 @@ match takes about an hour.
 |---|---|
 | `pitchvision/v9/network.py` | The head: one convolution pooled at five temporal widths, then a classifier. |
 | `pitchvision/v9/infer.py` | `run_inference_v9`, matching the v3/v8 contract. |
-| `pitchvision/v9/extract_tdeed_features.py` | Copied into the T-DEED checkout and run there to capture features. |
+| `third_party/tdeed_glue/extract_tdeed_features.py` | GPL-3.0 (imports T-DEED). Copied into the T-DEED checkout and run there as a separate process to capture features; prints a batch counter for progress. Kept apart from our code with its licence text. |
+| `pitchvision/v9/video.py` | Frame-rate normalisation to 25 fps (torch-free). |
 | `scripts/spot_video_v9.py` | Command-line entry point. |
 | `results/checkpoints/v9_tdeed_head_seed0.pt` | Trained head, 886 KB. Committed with `git add -f`, since `.gitignore` excludes `*.pt`. |
+
+## Frame rate
+
+v9's time grid is T-DEED's stride 2 over a **25 fps** source (row r = r / 12.5 s). T-DEED reads frames by
+index, so a 30 fps file would put every timestamp 1.2x too late, 60 fps 2.4x. `run_inference_v9` (and
+therefore `spot_video_v9.py`, the Streamlit app and the inference server) re-encodes any input that is not
+constant 25 fps — phones typically shoot 30 or 60, often variable — to 25 fps at CRF 18 before extracting
+features, via `pitchvision/v9/video.py`. Constant-25 fps input is used untouched. `tests/test_v9_fps.py`
+checks that a cut at 12.0 s lands at 12.0 s for 30, 60 and variable-rate input (14.4 / 28.8 / 14.4 s
+without the fix). The resampling itself is exact; whether the model's accuracy holds on phone footage is a
+separate, untested question (see below).
+
+## Speed: re-measure on a GPU
+
+The ~0.6x real-time figure above was measured with the feature-capture script's earlier DataLoader setup,
+which used T-DEED's configured 4 workers. T-DEED's inference dataset is an `IterableDataset` that does not
+shard itself across workers, so every worker yielded every clip and the backbone ran **4 times per clip**
+(measured: 48 clips yielded for 12 unique; averaged features identical to 2e-6). The script now uses one
+worker (`PV_TDEED_WORKERS`). On CPU that cut a 10-second clip from 65 s to 21 s, model loading included.
+The GPU figure should drop too, by an amount not yet measured — re-time a 120-second clip on a T4 and update
+`PV_RTF` (the server's ETA prior) and the numbers in this README.
+
+T-DEED's code requires CUDA (`.cuda()` is called directly); it does not fall back to CPU.
 
 ## Known limitations
 

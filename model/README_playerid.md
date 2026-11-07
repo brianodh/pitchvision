@@ -31,7 +31,9 @@ Use the **720p** video, not 224p.
 ## What is accurate: event detection
 
 Validated across the full 101-minute Stoke City vs Huddersfield Town match (2019-10-01) against
-`Labels-ball.json`. 2,139 events detected at threshold 0.5 against 1,844 annotated:
+`Labels-ball.json`. 2,139 events detected at threshold 0.5 against 1,844 annotated. The per-class table
+below covers the 2,125 of those detections that could be located in frame; the remaining 14 are not
+broken down by class, so the `detected` column sums to 2,125, not 2,139:
 
 | class | actual | detected | ratio |
 |---|---|---|---|

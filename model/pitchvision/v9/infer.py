@@ -15,9 +15,17 @@ import time
 import numpy as np
 
 from .network import EDGE, FPS125, TAPS, load_head
+from .video import TARGET_FPS, normalise
 
 NMS_SECONDS = 0.5
-_EXTRACTOR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'extract_tdeed_features.py')
+# GPL-3.0 glue, kept apart from this package (see model/third_party/tdeed_glue/README.md). It is copied
+# into the T-DEED checkout and run there as a separate process; nothing here imports it.
+_EXTRACTOR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..',
+                                           'third_party', 'tdeed_glue', 'extract_tdeed_features.py'))
+
+
+class Cancelled(RuntimeError):
+    """Raised when should_stop() asked for the backbone run to be abandoned."""
 
 
 def _resolve_tdeed_root(tdeed_root):
@@ -36,22 +44,41 @@ def _resolve_tdeed_root(tdeed_root):
     return root
 
 
-def _trim(video_path, seconds, out_dir):
-    """Cut the first `seconds` of video, so a demo clip does not cost a full-match run."""
-    out = os.path.join(out_dir, 'clip.mp4')
-    subprocess.run(['ffmpeg', '-y', '-i', video_path, '-t', str(int(seconds)),
-                    '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', out],
-                   check=True, capture_output=True)
-    return out
 
 
-def extract_features(video_path, tdeed_root, out_path, model_name='SoccerNetBall_test'):
-    """Run the capture script inside the T-DEED checkout, where its imports resolve."""
+def extract_features(video_path, tdeed_root, out_path, model_name='SoccerNetBall_test',
+                     on_progress=None, should_stop=None, log=None):
+    """Run the capture script inside the T-DEED checkout, where its imports resolve.
+
+    on_progress(done, total) receives the script's real batch counter (`PV_PROGRESS i/n` lines).
+    should_stop() is polled between output lines; returning True kills the process and raises Cancelled.
+    Other output is passed to log(line), or printed when log is None.
+    """
     shutil.copy(_EXTRACTOR, os.path.join(tdeed_root, 'extract_tdeed_features.py'))
-    subprocess.run([sys.executable, 'extract_tdeed_features.py', '--model', model_name,
-                    '--video_path', os.path.abspath(video_path),
-                    '--out_path', os.path.abspath(out_path)],
-                   cwd=tdeed_root, check=True)
+    cmd = [sys.executable, '-u', 'extract_tdeed_features.py', '--model', model_name,
+           '--video_path', os.path.abspath(video_path), '--out_path', os.path.abspath(out_path)]
+    proc = subprocess.Popen(cmd, cwd=tdeed_root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            text=True, bufsize=1)
+    tail = []
+    try:
+        for line in proc.stdout:
+            line = line.rstrip()
+            if should_stop and should_stop():
+                proc.kill()
+                raise Cancelled('cancelled during feature extraction')
+            if line.startswith('PV_PROGRESS '):
+                done, total = line.split()[1].split('/')
+                if on_progress:
+                    on_progress(int(done), int(total))
+                continue
+            tail = (tail + [line])[-40:]
+            (log or print)(line)
+        code = proc.wait()
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+    if code != 0:
+        raise RuntimeError(f'T-DEED feature extraction failed (exit {code}):\n' + '\n'.join(tail[-15:]))
     return out_path
 
 
@@ -111,7 +138,9 @@ def run_inference_v9(video_path, ckpt_path, out_dir, threshold=0.5, max_seconds=
     with tempfile.TemporaryDirectory() as tmp:
         if progress:
             progress('preparing video', 0.0)
-        src = _trim(video_path, max_seconds, tmp) if max_seconds else video_path
+        # v9's 12.5 fps grid assumes a constant 25 fps source; anything else (phones: 30/60, often variable)
+        # is re-encoded to 25 fps first, or every timestamp is wrong. Also applies --max_seconds.
+        src, src_info = normalise(video_path, tmp, max_seconds)
         if progress:
             progress('running the T-DEED backbone', 0.1)
         feat_path = os.path.join(out_dir, 'tdeed_features.npy')
@@ -132,6 +161,9 @@ def run_inference_v9(video_path, ckpt_path, out_dir, threshold=0.5, max_seconds=
                 'checkpoint': os.path.basename(str(ckpt_path)),
                 'model': 'pitchvision-v9 (T-DEED features + multi-scale head)',
                 'fps': FPS125, 'threshold': threshold,
+                'source_fps': round(src_info['avg_fps'], 3) if src_info['avg_fps'] else None,
+                'source_variable_fps': src_info['variable'],
+                'normalised_to_fps': TARGET_FPS if src != video_path else None,
                 'analysed_seconds': round(len(X) / FPS125, 1),
                 'events': events}
     scores_path = os.path.join(out_dir, 'scores.npy')

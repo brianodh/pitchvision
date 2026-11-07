@@ -24,11 +24,37 @@ demonstrates single-camera or phone-footage performance.**
 ├── model/       the research code that was submitted to PARC (data, model, training, metrics, scripts, tests,
 │                evidence files and three reference checkpoints) — start here
 ├── docs/        final report, presentation, demo runbook and notebook, proposal deck
-├── backend/     API prototype (planned; not part of the qualifier submission)
-├── frontend/    interface prototype (planned; not part of the qualifier submission)
+├── web/         the PitchVision app: video + synchronised event timeline (Next.js, runs locally)
+├── backend/     pv_server (FastAPI inference API), colab_server.ipynb (GPU + tunnel), build_demo.py,
+│                and the original Streamlit research harness (backend/app/, unchanged)
 ├── data/        contains no data — see data/README.md for the NDA rules
 └── PitchVision_Team_Task_Plan.md
 ```
+
+## Run the app
+
+Everything runs on your machine; nothing is deployed.
+
+```
+browser ──> web/ (Next.js, localhost:3000) ──/api proxy──> pv_server on a GPU (Colab + cloudflared tunnel)
+                │
+                └── web/data/matches/   pre-analysed matches: work with the backend switched off
+```
+
+1. **Pre-analysed demo (no GPU, no network).** Build a match bundle from a v9 `timeline.json` and your local
+   video with `python backend/scripts/build_demo.py ...`, then `cd web && npm install && npm run build && npm start`.
+   See [`web/README.md`](web/README.md).
+2. **Live uploads (optional).** Run [`backend/colab_server.ipynb`](backend/colab_server.ipynb) on a T4, then
+   `npm run set-backend -- <tunnel-url> <token>` in `web/`. Clips are capped (default 10 minutes) because
+   inference runs at ~0.6× real time. API and settings: [`backend/pv_server/README.md`](backend/pv_server/README.md).
+
+What the app shows is limited to what was measured: ball events and their timing, tempo, event mix, key passages,
+and per-class reliability (detected ÷ true count). It deliberately shows no team, possession, player or
+per-player statistics — see the app's *Method & limits* page and `model/README_playerid.md`.
+
+**External dependency:** the v9 engine runs [T-DEED](https://github.com/arturxe2/T-DEED) (GPL-3.0), which is
+cloned at setup at a pinned commit and never vendored. The one file that imports it lives, with its licence,
+in `model/third_party/tdeed_glue/` and runs as a separate process.
 
 ## Reproduce the results
 
