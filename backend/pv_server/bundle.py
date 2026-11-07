@@ -84,6 +84,41 @@ def build_bundle(*, events: list[dict], match_id: str, title: str, engine: str, 
     }
 
 
+def _clock(s: float) -> str:
+    s = max(0, int(round(s)))
+    return f"{s // 60:02d}:{s % 60:02d}"
+
+
+def coverage_problems(event_times: list[float], video_duration: float | None,
+                      analysed_seconds: float | None = None) -> list[str]:
+    """Reasons a timeline does not cover the video it is being paired with; empty when it does.
+
+    The classic mistake is a timeline from a short test run (`--max_seconds 120`) paired with the full-match
+    video: the app would then show 100 empty minutes as if nothing happened in them. Thresholds are loose on
+    purpose — a full match averages ~20 detections a minute, so a real gap of minutes at the end is a mismatch,
+    not a quiet spell.
+    """
+    if not video_duration:
+        return ["could not read the video's duration (is ffprobe installed, and is the file complete?)"]
+    dur = float(video_duration)
+    out = []
+    tol = max(10.0, 0.02 * dur)
+    if analysed_seconds and analysed_seconds < dur - tol:
+        out.append(f"the timeline analysed {_clock(analysed_seconds)} of a {_clock(dur)} video "
+                   f"(was it run with --max_seconds, or on a different file?)")
+    if not event_times:
+        out.append("the timeline has no events")
+        return out
+    last = max(event_times)
+    if last > dur + 2:
+        out.append(f"events run to {_clock(last)}, past the end of the {_clock(dur)} video — wrong video, or wrong --offset?")
+    gap = dur - last
+    if gap > max(120.0, 0.05 * dur):
+        out.append(f"the last event is at {_clock(last)} but the video runs to {_clock(dur)}: "
+                   f"{_clock(gap)} with no events at all")
+    return out
+
+
 def write_bundle(bundle: dict, out_dir: str) -> str:
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "match.json")

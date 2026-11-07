@@ -24,7 +24,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(ROOT, "backend"))
 sys.path.insert(0, os.path.join(ROOT, "model"))
 
-from pv_server.bundle import build_bundle, probe_duration, slugify, write_bundle  # noqa: E402
+from pv_server.bundle import build_bundle, coverage_problems, probe_duration, slugify, write_bundle  # noqa: E402
 from pv_server.thumbs import make_thumbs  # noqa: E402
 
 
@@ -66,6 +66,9 @@ def main():
                    help="frame grab (default), or player crop (needs ultralytics, AGPL-3.0)")
     p.add_argument("--video-mode", choices=("link", "copy", "none"), default="link",
                    help="symlink the video into the bundle (default), copy it, or leave it out")
+    p.add_argument("--allow-partial", action="store_true",
+                   help="build even if the timeline does not cover the whole video (the uncovered part is shown "
+                        "as not analysed)")
     p.add_argument("--offset", type=float, default=0.0,
                    help="seconds to add to every event time if --video starts earlier than the "
                         "analysed clip (rarely needed)")
@@ -78,7 +81,6 @@ def main():
               "v9 measurements and will be hidden for this engine.")
     match_id = a.id or slugify(a.title)
     out_dir = os.path.join(a.out_root, match_id)
-    os.makedirs(out_dir, exist_ok=True)
 
     events = [{"id": i, "t": float(e["time_s"]) + a.offset, "class": e["class"], "score": e["score"]}
               for i, e in enumerate(sorted(tl["events"], key=lambda e: (e["time_s"], -e["score"])))]
@@ -91,6 +93,22 @@ def main():
             last[0] = time.time()
             print(f"  thumbnails {n}/{total}", flush=True)
 
+    # Refuse a timeline that doesn't cover this video before spending minutes on thumbnails, and long before a
+    # browser shows the uncovered stretch as a quiet match.
+    duration = probe_duration(a.video)
+    problems = coverage_problems([e["t"] for e in events], duration, tl.get("analysed_seconds"))
+    if problems:
+        print("\nThis timeline does not match the video:", file=sys.stderr)
+        for msg in problems:
+            print(f"  - {msg}", file=sys.stderr)
+        if not a.allow_partial or duration is None:
+            print("\nNothing was written. Re-run the analysis on this exact file, pass the matching --video, or "
+                  "use --allow-partial if a partial timeline is what you want.", file=sys.stderr)
+            sys.exit(2)
+        print("--allow-partial: building anyway; the uncovered part will be hatched as not analysed.\n", file=sys.stderr)
+    analysed = tl.get("analysed_seconds") or (max(e["t"] for e in events) if a.allow_partial and events else duration)
+
+    os.makedirs(out_dir, exist_ok=True)
     print(f"{len(events)} events; grabbing thumbnails ({a.thumbs}) ...")
     thumbs = make_thumbs(a.thumbs, a.video, events, out_dir, progress=prog)
     for e in events:
@@ -100,8 +118,8 @@ def main():
     bundle = build_bundle(events=events, match_id=match_id, title=a.title, subtitle=a.subtitle,
                           engine=engine, model=tl.get("model", "unknown"),
                           threshold=tl.get("threshold", 0.5),
-                          analysed_seconds=tl.get("analysed_seconds") or probe_duration(a.video) or 0,
-                          duration_s=probe_duration(a.video), video=video_name,
+                          analysed_seconds=analysed or 0,
+                          duration_s=duration, video=video_name,
                           thumbs_mode=None if a.thumbs == "none" else a.thumbs, source="demo")
     path = write_bundle(bundle, out_dir)
     missing = sum(1 for e in events if not e.get("thumb"))
