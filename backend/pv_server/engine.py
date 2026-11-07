@@ -8,7 +8,6 @@ schema in bundle.py.
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 from dataclasses import dataclass
 from typing import Callable, Protocol
@@ -27,7 +26,7 @@ class Cancelled(Exception):
 class EngineResult:
     events: list[dict]            # [{"t": seconds, "class": str, "score": float}]
     analysed_seconds: float
-    video_for_thumbs: str         # the file whose timestamps the events refer to
+    video_for_thumbs: str         # a file whose seconds match the event times (fps-normalising preserves them)
 
 
 class Engine(Protocol):
@@ -40,18 +39,6 @@ class Engine(Protocol):
     def device(self) -> str: ...
 
     def run(self, video: str, work_dir: str, report: Report, should_stop: ShouldStop) -> EngineResult: ...
-
-
-def probe_fps(video: str) -> float | None:
-    try:
-        out = subprocess.run(
-            ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=avg_frame_rate",
-             "-of", "default=noprint_wrappers=1:nokey=1", video],
-            check=True, capture_output=True, text=True, timeout=60).stdout.strip()
-        num, _, den = out.partition("/")
-        return float(num) / float(den or 1)
-    except (OSError, subprocess.SubprocessError, ValueError, ZeroDivisionError):
-        return None
 
 
 class V9Engine:
@@ -98,17 +85,17 @@ class V9Engine:
         import numpy as np
         import torch
 
+        from pitchvision.v9.video import is_constant_25, normalise, probe
+
         report("prepare", 0.0, "checking frame rate")
-        # v9's 12.5 fps grid is T-DEED's stride 2 over a 25 fps source; any other rate would put every
-        # timestamp in the wrong place. Re-encode at high quality (CRF 18) only when needed.
-        fps = probe_fps(video)
-        src = video
-        if fps is None or abs(fps - 25.0) > 0.01:
-            report("prepare", 0.2, f"converting {fps or '?'} fps to 25 fps")
-            src = os.path.join(work_dir, "input_25fps.mp4")
-            subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", video, "-r", "25", "-an",
-                            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", src],
-                           check=True, capture_output=True)
+        # v9's 12.5 fps grid assumes a constant 25 fps source (see pitchvision/v9/video.py); phones shoot 30/60,
+        # often variable. Re-encode when needed, or every timestamp would be wrong.
+        info = probe(video)
+        if not is_constant_25(info):
+            vfr = " variable" if info["variable"] else ""
+            report("prepare", 0.2, f"converting{vfr} {info['avg_fps'] or '?':.4g} fps to 25 fps"
+                   if info["avg_fps"] else "converting to 25 fps")
+        src, _ = normalise(video, work_dir)
         if should_stop():
             raise Cancelled()
         report("prepare", 1.0, None)
@@ -133,7 +120,7 @@ class V9Engine:
         raw = v9.build_events(P, meta["classes"], self.s.threshold)
         report("score", 1.0, None)
         events = [{"t": e["time_s"], "class": e["class"], "score": e["score"]} for e in raw]
-        return EngineResult(events=events, analysed_seconds=round(len(X) / FPS125, 2), video_for_thumbs=src)
+        return EngineResult(events=events, analysed_seconds=round(len(X) / FPS125, 2), video_for_thumbs=video)
 
 
 def make_engine(settings: Settings) -> Engine:
@@ -142,4 +129,4 @@ def make_engine(settings: Settings) -> Engine:
     raise ValueError(f"unknown engine {settings.engine!r}")
 
 
-__all__ = ["Engine", "EngineResult", "Cancelled", "V9Engine", "make_engine", "probe_fps"]
+__all__ = ["Engine", "EngineResult", "Cancelled", "V9Engine", "make_engine"]

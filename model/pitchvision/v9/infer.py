@@ -15,6 +15,7 @@ import time
 import numpy as np
 
 from .network import EDGE, FPS125, TAPS, load_head
+from .video import TARGET_FPS, normalise
 
 NMS_SECONDS = 0.5
 # GPL-3.0 glue, kept apart from this package (see model/third_party/tdeed_glue/README.md). It is copied
@@ -43,13 +44,6 @@ def _resolve_tdeed_root(tdeed_root):
     return root
 
 
-def _trim(video_path, seconds, out_dir):
-    """Cut the first `seconds` of video, so a demo clip does not cost a full-match run."""
-    out = os.path.join(out_dir, 'clip.mp4')
-    subprocess.run(['ffmpeg', '-y', '-i', video_path, '-t', str(int(seconds)),
-                    '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', out],
-                   check=True, capture_output=True)
-    return out
 
 
 def extract_features(video_path, tdeed_root, out_path, model_name='SoccerNetBall_test',
@@ -144,7 +138,9 @@ def run_inference_v9(video_path, ckpt_path, out_dir, threshold=0.5, max_seconds=
     with tempfile.TemporaryDirectory() as tmp:
         if progress:
             progress('preparing video', 0.0)
-        src = _trim(video_path, max_seconds, tmp) if max_seconds else video_path
+        # v9's 12.5 fps grid assumes a constant 25 fps source; anything else (phones: 30/60, often variable)
+        # is re-encoded to 25 fps first, or every timestamp is wrong. Also applies --max_seconds.
+        src, src_info = normalise(video_path, tmp, max_seconds)
         if progress:
             progress('running the T-DEED backbone', 0.1)
         feat_path = os.path.join(out_dir, 'tdeed_features.npy')
@@ -165,6 +161,9 @@ def run_inference_v9(video_path, ckpt_path, out_dir, threshold=0.5, max_seconds=
                 'checkpoint': os.path.basename(str(ckpt_path)),
                 'model': 'pitchvision-v9 (T-DEED features + multi-scale head)',
                 'fps': FPS125, 'threshold': threshold,
+                'source_fps': round(src_info['avg_fps'], 3) if src_info['avg_fps'] else None,
+                'source_variable_fps': src_info['variable'],
+                'normalised_to_fps': TARGET_FPS if src != video_path else None,
                 'analysed_seconds': round(len(X) / FPS125, 1),
                 'events': events}
     scores_path = os.path.join(out_dir, 'scores.npy')

@@ -35,6 +35,10 @@ def main():
                          threshold=a.threshold, max_seconds=a.max_seconds,
                          tdeed_root=a.tdeed_root)
     t = r['timeline']
+    if t.get('normalised_to_fps'):
+        vfr = ', variable' if t.get('source_variable_fps') else ''
+        print(f'source video {t.get("source_fps")} fps{vfr} -> re-encoded to {t["normalised_to_fps"]:g} fps '
+              f'(v9 timestamps assume 25 fps)')
     print(f'{len(t["events"])} events over {t["analysed_seconds"]:.0f}s in {r["seconds"]}s')
     print(json.dumps(t['events'][:5], indent=1))
     print('->', os.path.join(a.out, 'timeline.json'))
