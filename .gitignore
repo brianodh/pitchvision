@@ -21,6 +21,11 @@ Viability_Test*.ipynb
 .env.local
 *.key
 
+# YouTube cookies file (exported browser session, used by yt-dlp to avoid
+# the "Sign in to confirm you're not a bot" error) — this is personal
+# login-session data and must never be committed
+cookies.txt
+
 # --- Python ---
 __pycache__/
 *.py[cod]
@@ -49,6 +54,11 @@ Thumbs.db
 .vscode/
 .idea/
 .venv/
+cookies.txt
+out_new/
+out_old/
+out_v9/
+Pitch_Vision_Project*.ipynb
 .venv311/
 venv/
 
