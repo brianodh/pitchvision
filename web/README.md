@@ -5,6 +5,8 @@ Next.js (App Router) + TypeScript + Tailwind. Runs on your machine; nothing is d
 ```bash
 cd web
 npm install
+npm test
+npm run typecheck
 npm run build && npm start      # http://localhost:3000
 ```
 
