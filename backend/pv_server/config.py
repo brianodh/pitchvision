@@ -39,6 +39,8 @@ class Settings:
     # T-DEED's code hardcodes CUDA, so without a GPU it crashes rather than running slowly. Set to 1 only to
     # test against a T-DEED checkout patched for CPU.
     allow_cpu: bool = field(default_factory=lambda: _env("PV_ALLOW_CPU", "0") == "1")
+    # Fail closed: the server refuses to start without PV_TOKEN unless you explicitly opt out (local dev only).
+    insecure: bool = field(default_factory=lambda: _env("PV_INSECURE", "0") == "1")
 
     def resolved_ckpt(self) -> str:
         if self.ckpt:

@@ -39,6 +39,10 @@ venv/
 .agents/skills/developing-with-streamlit
 .claude/skills/developing-with-streamlit
 .kilo
+<<<<<<< HEAD
+=======
+
+>>>>>>> 6b39dedc9d73e32d50f5fcbace1eed055942990d
 # --- Node / frontend ---
 node_modules/
 frontend/dist/
