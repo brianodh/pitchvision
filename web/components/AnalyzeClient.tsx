@@ -46,6 +46,9 @@ export function AnalyzeClient({ recent }: { recent: { id: string; filename: stri
   const [upload, setUpload] = useState<{ sent: number; total: number } | null>(null);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const xhr = useRef<XMLHttpRequest | null>(null);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkState, setLinkState] = useState<"idle" | "working" | "error">("idle");
+  const [linkError, setLinkError] = useState<{ code: string; message: string } | null>(null);
 
   useEffect(() => () => xhr.current?.abort(), []);
 
@@ -60,6 +63,7 @@ export function AnalyzeClient({ recent }: { recent: { id: string; filename: stri
   const tooBig = picked != null && maxMb != null && picked.file.size > maxMb * 1048576;
   const ready = health.state === "ready";
   const canSubmit = picked && ready && !tooLong && !tooShort && !tooBig && !upload && !measuring;
+  const isWhatsApp = /whatsapp\.com|wa\.me/i.test(linkUrl);
 
   async function choose(file: File | undefined) {
     if (!file) return;
@@ -69,6 +73,31 @@ export function AnalyzeClient({ recent }: { recent: { id: string; filename: stri
     const duration = await measureDuration(file);
     setPicked({ file, duration });
     setMeasuring(false);
+  }
+
+  async function submitLink() {
+    const url = linkUrl.trim();
+    if (!url || !ready) return;
+    setLinkState("working");
+    setLinkError(null);
+    try {
+      const res = await fetch("/api/analyze-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const body = (await res.json()) as { jobId?: string; error?: { code: string; message: string } };
+      if (res.status === 202 && body.jobId) {
+        router.push(`/analyze/${body.jobId}`);
+        return;
+      }
+      setLinkError(body.error ?? { code: `http_${res.status}`, message: `Couldn't download that link (HTTP ${res.status}).` });
+      setLinkState("error");
+      void recheck();
+    } catch {
+      setLinkError({ code: "network", message: "The local PitchVision server isn't answering. Is `npm start` still running?" });
+      setLinkState("error");
+    }
   }
 
   function submit() {
@@ -143,6 +172,59 @@ export function AnalyzeClient({ recent }: { recent: { id: string; filename: stri
           </span>
           <input type="file" accept={ACCEPT} className="sr-only" onChange={(e) => void choose(e.target.files?.[0])} />
         </label>
+
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex-1">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-[11px] text-ink-4">
+              https://
+            </span>
+            <input
+              type="url"
+              inputMode="url"
+              placeholder="youtube.com/watch?v=… or a direct .mp4 link"
+              value={linkUrl}
+              onChange={(e) => {
+                setLinkUrl(e.target.value);
+                if (linkState === "error") setLinkState("idle");
+              }}
+              disabled={linkState === "working"}
+              className="w-full rounded-lg border border-line-strong bg-s2 py-2.5 pl-20 pr-3 text-[14px] text-ink-1 outline-none focus:border-accent disabled:opacity-50"
+            />
+          </div>
+          <button
+            type="button"
+            disabled={!linkUrl.trim() || linkState === "working" || !ready}
+            onClick={submitLink}
+            className="shrink-0 rounded-md border border-line-strong px-4 py-2.5 text-sm font-medium text-ink-2 transition hover:border-ink-3 hover:text-ink-1 disabled:cursor-not-allowed disabled:opacity-35"
+          >
+            {linkState === "working" ? "Downloading…" : "Use link"}
+          </button>
+        </div>
+
+        {isWhatsApp && (
+          <p className="mt-2 text-[13px] text-warn">
+            WhatsApp videos must be uploaded as files — chat videos have no public URL.
+          </p>
+        )}
+        {linkUrl && !isWhatsApp && (
+          <p className="mt-2 text-[13px] text-ink-3">
+            Clips from TikTok or social apps are heavily compressed and may give poor results. Original files work best.
+          </p>
+        )}
+        {linkState === "working" && (
+          <p className="mt-2 text-[13px] text-ink-3">
+            Downloading with yt-dlp… the GPU time starts once the file lands.
+          </p>
+        )}
+        {linkState === "error" && linkError && (
+          <div role="alert" className="mt-2 rounded-md border border-danger/40 bg-danger/5 p-3 text-[13px] text-ink-2">
+            <p className="font-medium text-ink-1">{linkError.message}</p>
+            <p className="mt-1 text-[12px] text-ink-4">code: {linkError.code}</p>
+          </div>
+        )}
+        {!ready && health.state !== "loading" && (
+          <span className="mt-2 block text-[12.5px] text-warn">Links need the backend to be ready — see the backend panel.</span>
+        )}
 
         {picked && (
           <div className="mt-4 rounded-lg border border-line bg-s2 p-4">
