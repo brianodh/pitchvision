@@ -14,6 +14,7 @@ Every route requires `Authorization: Bearer $PV_TOKEN` when PV_TOKEN is set. Err
 """
 from __future__ import annotations
 
+import hmac
 import os
 import re
 
@@ -36,13 +37,17 @@ def err(status: int, code: str, message: str, **extra) -> HTTPException:
 
 def create_app(settings: Settings | None = None, engine: Engine | None = None) -> FastAPI:
     s = settings or Settings()
+    if not s.token and not s.insecure:
+        raise RuntimeError(
+            "PV_TOKEN is not set. Set a secret token, or set PV_INSECURE=1 for local development only. "
+            "Without a token, anyone who finds the URL can use your GPU.")
     eng = engine or make_engine(s)
     jobs = JobManager(s, eng)
     app = FastAPI(title="PitchVision inference", version=VERSION, docs_url=None, redoc_url=None)
     app.state.settings, app.state.jobs = s, jobs
 
     def auth(authorization: str | None = Header(default=None)):
-        if s.token and authorization != f"Bearer {s.token}":
+        if s.token and not hmac.compare_digest(authorization or "", f"Bearer {s.token}"):
             raise err(401, "unauthorized", "Missing or wrong backend token (PV_TOKEN).")
 
     def job_or_404(job_id: str):
