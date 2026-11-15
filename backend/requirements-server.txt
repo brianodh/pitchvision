@@ -1,0 +1,10 @@
+# Inference server (pv_server). torch comes from the base image / Colab.
+fastapi>=0.115
+uvicorn>=0.30
+python-multipart>=0.0.9
+numpy
+opencv-python-headless
+# T-DEED's runtime needs (T-DEED itself is cloned at setup, not installed from here):
+timm==1.0.3
+tabulate
+SoccerNet
