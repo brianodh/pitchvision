@@ -182,3 +182,12 @@ def test_bundle_whitelist_and_class_check():
                      analysed_seconds=100.0)
     assert b["analysed"] == {"start_s": 9.52, "end_s": 90.48}
     assert "tally" not in b and "team" not in str(b)
+
+
+def test_refuses_to_start_without_token(tmp_path):
+    """Fail closed: no PV_TOKEN and no explicit PV_INSECURE opt-out means the server will not start."""
+    import pytest
+    with pytest.raises(RuntimeError, match="PV_TOKEN"):
+        create_app(Settings(workdir=str(tmp_path / "jobs"), token=None, insecure=False), StubEngine())
+    # explicit local-dev opt-out still works
+    create_app(Settings(workdir=str(tmp_path / "jobs2"), token=None, insecure=True), StubEngine())
