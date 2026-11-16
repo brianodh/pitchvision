@@ -1,0 +1,69 @@
+# PitchVision container orchestration.
+#
+# Two services:
+#   backend  - GPU inference server (T-DEED + v9 head), port 8000
+#   web      - Next.js frontend, port 3000 (proxies to backend)
+#
+# Prerequisites:
+#   - Docker with the NVIDIA Container Toolkit installed (for the backend GPU)
+#   - A T-DEED SoccerNetBall_test checkpoint mounted at backend/checkpoint_best.pt
+#
+# Usage:
+#   export PV_TOKEN=your-secret-token
+#   docker compose up --build
+#
+# Then open http://localhost:3000 and paste a video link or upload a file.
+#
+# Notes:
+#   - The backend needs `--gpus all` equivalent; compose declares an NVIDIA device
+#     reservation which the NVIDIA Container Toolkit honours at run time.
+#   - The web app talks to the backend via the Docker Compose service name
+#     (http://backend:8000) — no port publishing strictly required, but 8000 is
+#     exposed for direct access if needed.
+#   - PV_DATA_DIR defaults to web/data inside the web container; a named volume
+#     (pitchvision-data) persists matches/uploads across restarts.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.gpu
+    ports:
+      - "8000:8000"
+    environment:
+      - PV_TOKEN=${PV_TOKEN}
+      - PV_MAX_SECONDS=600
+      - PV_MIN_SECONDS=20
+      - PV_MAX_UPLOAD_MB=95
+      - PV_MODEL_ROOT=/app/model
+      - TDEED_ROOT=/opt/T-DEED
+      - PV_WORKDIR=/tmp/pitchvision_jobs
+      - PORT=8000
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      # Mount your trained checkpoint here. The SoccerNetBall_test checkpoint is
+      # large and trained on SoccerNet data (non-commercial research only).
+      - ./checkpoint_best.pt:/opt/T-DEED/checkpoints/SoccerNetBall/SoccerNetBall_test/checkpoint_best.pt:ro
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PV_BACKEND_URL=http://backend:8000
+      - PV_BACKEND_TOKEN=${PV_TOKEN}
+    depends_on:
+      - backend
+    volumes:
+      - pitchvision-data:/app/web/data
+
+volumes:
+  pitchvision-data:

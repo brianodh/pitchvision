@@ -58,3 +58,55 @@ The Analyse page accepts a video URL as well as a file upload. The web server do
 
 **Limitation:** the SSRF guard resolves the host before the request, so a DNS rebinding attack that
 swaps the record between validation and spawn is not fully closed. Run this on a trusted network.
+
+## Docker
+
+The web app can run standalone in a container with `yt-dlp` + `ffmpeg` preinstalled:
+
+```bash
+# Build
+docker build -f web/Dockerfile -t pitchvision-web .
+
+# Run standalone (point at your backend via URL + token)
+docker run -p 3000:3000 \
+  -e PV_BACKEND_URL=http://your-backend:8000 \
+  -e PV_BACKEND_TOKEN=yourtoken \
+  pitchvision-web
+```
+
+For the full stack (GPU backend + web app), use [docker-compose.yml](../docker-compose.yml):
+
+```bash
+# From the repo root
+export PV_TOKEN=your-secret-token
+docker compose up --build
+```
+
+Then open `http://localhost:3000`.
+
+The backend service requires an NVIDIA GPU (via the NVIDIA Container Toolkit) and a mounted
+T-DEED SoccerNetBall_test checkpoint:
+
+```bash
+docker compose up --build
+# with ./checkpoint_best.pt present at the repo root, or adjust the volume mount in
+# docker-compose.yml to point at your checkpoint.
+```
+
+The web service talks to the backend via the Compose service name (`http://backend:8000`), so no
+extra port publishing is needed for inter-service traffic.
+
+### Environment variables
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `PV_BACKEND_URL` | Inference backend URL | required |
+| `PV_BACKEND_TOKEN` | Backend auth token | required if backend sets `PV_TOKEN` |
+| `YT_DLP_PATH` | Override yt-dlp binary location | `yt-dlp` |
+| `PV_DATA_DIR` | Directory for uploads/jobs/matches | `/app/web/data` |
+
+### Volumes
+
+- `/app/web/data` — match library, uploads, and job bookkeeping. Persisted across restarts via the
+  `pitchvision-data` named volume in Compose.
+
