@@ -38,6 +38,8 @@ export function downloadVideo(url: string, destDir: string): Promise<DownloadRes
       "95M",
       "--match-filter",
       "duration<=600",
+      "--js-runtimes",
+      "node",
       "-o",
       outTemplate,
       url,
