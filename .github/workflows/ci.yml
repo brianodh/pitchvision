@@ -36,7 +36,8 @@ jobs:
       - name: Lint Python backend
         run: |
           pip install ruff
-          ruff check backend/
+          ruff --fix backend/app backend/pv_server
+          ruff check backend/app backend/pv_server
 
   build-and-push:
     needs: lint

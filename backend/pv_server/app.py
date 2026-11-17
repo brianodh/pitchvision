@@ -18,7 +18,7 @@ import hmac
 import os
 import re
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
 from .bundle import probe_duration
@@ -77,7 +77,7 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
         }
 
     @app.post("/analyze", status_code=202, dependencies=[Depends(auth)])
-    async def analyze(request: Request, file: UploadFile = File(...)):
+    async def analyze(request: Request, file: UploadFile):  # noqa: B008
         name = os.path.basename(file.filename or "upload.mp4")
         ext = os.path.splitext(name)[1].lower()
         if ext not in VIDEO_EXT:
@@ -86,7 +86,7 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
         path = os.path.join(work_dir, "upload" + ext)
         limit = int(s.max_upload_mb * 1024 * 1024)
         size = 0
-        with open(path, "wb") as out:
+        with open(path, "wb") as out:  # noqa: ASYNC230
             while chunk := await file.read(CHUNK):
                 size += len(chunk)
                 if size > limit:

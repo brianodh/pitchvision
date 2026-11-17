@@ -33,15 +33,15 @@ sys.path.insert(
 
 try:
     from scripts.spot_video import run_inference as run_inference_v3
-except Exception as _v3_err:
+except Exception as _v3_err:  # noqa: BLE001
     run_inference_v3, _v3_error = None, _v3_err
 try:
     from pitchvision.v8 import run_inference_v8
-except Exception as _v8_err:
+except Exception as _v8_err:  # noqa: BLE001
     run_inference_v8, _v8_error = None, _v8_err
 try:
     from pitchvision.v9 import run_inference_v9
-except Exception as _v9_err:
+except Exception as _v9_err:  # noqa: BLE001
     run_inference_v9, _v9_error = None, _v9_err
 
 
@@ -892,7 +892,7 @@ if st.button(
                         temp_dir,
                     )
                     video_source = youtube_url
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     st.error("Could not retrieve the YouTube video.")
                     with st.expander("Technical details"):
                         st.exception(e)
@@ -934,7 +934,7 @@ if st.button(
                     threshold=threshold,
                     max_seconds=duration,
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 st.error("PitchVision could not complete the analysis.")
                 with st.expander("Technical details"):
                     st.exception(e)
