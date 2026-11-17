@@ -85,7 +85,7 @@ def build_bundle(*, events: list[dict], match_id: str, title: str, engine: str, 
 
 
 def _clock(s: float) -> str:
-    s = max(0, int(round(s)))
+    s = max(0, round(s))
     return f"{s // 60:02d}:{s % 60:02d}"
 
 

@@ -72,7 +72,7 @@ def player_thumbs(video: str, events: list[dict], out_dir: str, fps: float | Non
     tracks = track_video(video)
     wanted: dict[int, list[dict]] = {}
     for e in events:
-        wanted.setdefault(int(round(float(e["t"]) * fps)), []).append(e)
+        wanted.setdefault(round(float(e["t"]) * fps), []).append(e)
 
     done: dict[int, str] = {}
     cap = cv2.VideoCapture(video)
