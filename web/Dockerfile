@@ -23,10 +23,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # yt-dlp binary for downloading video links
 RUN pip install --break-system-packages --no-cache-dir yt-dlp
 
-COPY package.json package-lock.json ./
+COPY web/package.json web/package-lock.json ./
 RUN npm ci
 
-COPY . .
+COPY web/ .
 RUN npm run build
 
 # ---------------------------------------------------------------
