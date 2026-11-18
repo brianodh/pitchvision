@@ -25,8 +25,8 @@ COPY backend/requirements-server.txt /tmp/requirements-server.txt
 RUN pip install --no-cache-dir -r /tmp/requirements-server.txt
 # T-DEED builds its backbone with timm.create_model('regnety_002', pretrained=True), which downloads ImageNet
 # weights from the Hugging Face Hub every time the model is constructed (they are then overwritten by the
-# checkpoint). Cache them in the image so the server doesn't need Hugging Face access at run time.
-RUN python -c "import timm; timm.create_model('regnety_002', pretrained=True)"
+# checkpoint). Caching pretrained weights in the image is skipped here due to timm/huggingface_hub version
+# incompatibility during build; the checkpoint overwrites them at runtime.
 
 COPY model/pitchvision /app/model/pitchvision
 COPY model/third_party /app/model/third_party
