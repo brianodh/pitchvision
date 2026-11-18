@@ -10,7 +10,7 @@ data
 *.log
 .DS_Store
 npm-debug.log*
-Dockerfile*
+/Dockerfile
 docker-compose.yml
 docker-compose.*.yml
 backend/Dockerfile.gpu
