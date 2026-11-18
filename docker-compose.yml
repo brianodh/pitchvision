@@ -53,8 +53,8 @@ services:
 
   web:
     build:
-      context: ./web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: web/Dockerfile
     ports:
       - "3000:3000"
     environment:
